@@ -1,0 +1,17 @@
+:root {
+  --sidebar-width:    72px;
+  --cart-width:       380px;
+  --header-height:    64px;
+  --border-radius:    12px;
+
+  --color-bg:         #111827;
+  --color-surface:    #1f2937;
+  --color-surface-2:  #374151;
+  --color-border:     #374151;
+  --color-accent:     #10b981;
+  --color-accent-dim: #059669;
+  --color-text:       #f3f4f6;
+  --color-text-muted: #9ca3af;
+  --color-danger:     #ef4444;
+  --color-warning:    #f59e0b;
+}

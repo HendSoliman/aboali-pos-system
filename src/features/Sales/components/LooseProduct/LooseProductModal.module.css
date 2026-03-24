@@ -1,0 +1,172 @@
+.overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,.72);
+  backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center;
+  z-index: 200;
+  animation: fadeIn .2s ease;
+}
+
+.modal {
+  width: 380px;
+  background: #1f2937;
+  border: 1px solid #374151;
+  border-radius: 20px;
+  padding: 18px;
+  display: flex; flex-direction: column; gap: 14px;
+  box-shadow: 0 24px 64px rgba(0,0,0,.6);
+  animation: slideUp .3s ease;
+}
+
+/* Header */
+.header {
+  display: flex; align-items: center; justify-content: space-between;
+}
+
+.headerInfo {
+  display: flex; align-items: center; gap: 12px;
+}
+
+.productEmoji {
+  font-size: 32px;
+  width: 52px; height: 52px;
+  background: #111827;
+  border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+}
+
+.productName {
+  font-family: 'Cairo', sans-serif;
+  font-size: 16px; font-weight: 800; color: #f3f4f6;
+}
+
+.productPrice {
+  font-family: 'Cairo', sans-serif;
+  font-size: 12px; color: #9ca3af; margin-top: 2px;
+}
+
+.closeBtn {
+  width: 32px; height: 32px;
+  background: #374151; border: none; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  color: #9ca3af; cursor: pointer; transition: all .2s;
+}
+.closeBtn:hover { background: #4b5563; color: #f3f4f6; }
+
+/* Unit Selector */
+.unitSelector {
+  display: flex; gap: 6px; flex-wrap: wrap;
+}
+
+.unitBtn {
+  flex: 1; min-width: fit-content;
+  padding: 7px 12px;
+  background: #111827; border: 1.5px solid #374151; border-radius: 10px;
+  font-family: 'Cairo', sans-serif; font-size: 12px; font-weight: 600;
+  color: #9ca3af; cursor: pointer; transition: all .2s;
+  white-space: nowrap;
+}
+.unitBtn:hover  { border-color: #10b981; color: #10b981; }
+.unitActive     { background: #064e3b; border-color: #10b981; color: #10b981; }
+
+/* Weight Display */
+.displayRow {
+  display: flex; align-items: center; justify-content: space-between;
+  background: #111827; border: 1.5px solid #374151;
+  border-radius: 14px; padding: 12px 16px;
+}
+
+.weightDisplay {
+  display: flex; align-items: center; gap: 8px;
+}
+
+.weightValue {
+  font-family: 'Cairo', sans-serif;
+  font-size: 28px; font-weight: 800; color: #f3f4f6;
+  letter-spacing: -1px;
+  min-width: 60px;
+}
+
+.weightUnit {
+  font-family: 'Cairo', sans-serif;
+  font-size: 14px; color: #6b7280; margin-top: 4px;
+}
+
+.adjustBtns {
+  display: flex; align-items: center; gap: 6px;
+}
+
+.adjBtn {
+  width: 30px; height: 30px;
+  background: #374151; border: none; border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  color: #d1d5db; cursor: pointer; transition: all .2s;
+}
+.adjBtn:hover { background: #10b981; color: #fff; }
+
+.adjStep {
+  font-family: 'Cairo', sans-serif;
+  font-size: 11px; color: #6b7280; min-width: 24px; text-align: center;
+}
+
+/* Price Preview */
+.pricePreview {
+  background: #064e3b;
+  border: 1.5px solid #10b981;
+  border-radius: 12px; padding: 10px 16px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+
+.priceCalc {
+  display: flex; align-items: center; gap: 6px;
+  font-family: 'Cairo', sans-serif; font-size: 13px; color: #6ee7b7;
+}
+
+.mult { font-size: 16px; font-weight: 700; color: #34d399; }
+
+.priceTotal {
+  font-family: 'Cairo', sans-serif;
+  font-size: 20px; font-weight: 800; color: #fff;
+}
+
+/* Numpad */
+.numpad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 6px;
+}
+
+.numKey {
+  padding: 13px;
+  background: #111827; border: 1.5px solid #374151; border-radius: 10px;
+  font-family: 'Cairo', sans-serif; font-size: 17px; font-weight: 700;
+  color: #f3f4f6; cursor: pointer; transition: all .15s;
+  display: flex; align-items: center; justify-content: center;
+}
+.numKey:hover  { background: #374151; border-color: #10b981; }
+.numKey:active { transform: scale(.93); }
+
+.delKey   { color: #ef4444; font-size: 20px; }
+.delKey:hover  { background: #7f1d1d; border-color: #ef4444; }
+
+.clearKey {
+  font-size: 14px; color: #f59e0b;
+  border-color: #78350f; background: #111827;
+}
+.clearKey:hover { background: #78350f; border-color: #f59e0b; }
+
+/* Confirm */
+.confirmBtn {
+  width: 100%; padding: 14px;
+  background: #10b981; border: none; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center; gap: 8px;
+  font-family: 'Cairo', sans-serif; font-size: 15px; font-weight: 800;
+  color: #fff; cursor: pointer; transition: all .2s;
+  box-shadow: 0 4px 20px rgba(16,185,129,.35);
+}
+.confirmBtn:hover:not(:disabled)  { background: #059669; transform: translateY(-1px); }
+.confirmBtn:active:not(:disabled) { transform: translateY(0); }
+.confirmBtn:disabled { opacity: .4; cursor: not-allowed; box-shadow: none; }
+
+@keyframes fadeIn  { from { opacity: 0 } to { opacity: 1 } }
+@keyframes slideUp { from { transform: translateY(24px); opacity: 0 } to { transform: translateY(0); opacity: 1 } }

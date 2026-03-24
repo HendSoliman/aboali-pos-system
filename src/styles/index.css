@@ -1,0 +1,11 @@
+/* Dark Theme */
+:root {
+  --bg-main: #111827;        /* dark navy */
+  --text-primary: #f3f4f6;   /* white text */
+}
+
+/* Light Theme — just OVERRIDE the same variables! */
+:root.light {
+  --bg-main: #f9fafb;        /* white */
+  --text-primary: #111827;   /* dark text */
+}

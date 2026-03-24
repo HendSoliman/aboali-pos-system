@@ -1,0 +1,11 @@
+.pm-page   { padding: 24px; display: flex; flex-direction: column; gap: 20px; height: 100vh; overflow-y: auto; }
+.pm-header { display: flex; align-items: center; justify-content: space-between; }
+.pm-title  { font-family: 'Cairo', sans-serif; font-size: 22px; font-weight: 800; color: #f3f4f6; }
+.pm-search { position: relative; display: flex; align-items: center; }
+.search-ico { position: absolute; right: 14px; color: #6b7280; pointer-events: none; }
+.pm-input {
+  width: 320px; background: #1f2937; border: 1.5px solid #374151; border-radius: 12px;
+  padding: 10px 40px 10px 14px; font-family: 'Cairo', sans-serif;
+  font-size: 14px; color: #f3f4f6; outline: none; direction: rtl; transition: border-color .2s;
+}
+.pm-input:focus { border-color: #10b981; }

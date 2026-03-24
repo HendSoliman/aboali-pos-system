@@ -1,0 +1,75 @@
+.card {
+  background: #1f2937;
+  border: 1.5px solid #374151;
+  border-radius: 16px;
+  padding: 12px;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+  overflow: hidden;
+  user-select: none;
+}
+
+.card:hover:not(.outOfStock) {
+  border-color: #10b981;
+  transform: translateY(-2px);
+  box-shadow: 0 8px 24px rgba(16,185,129,0.2);
+}
+
+.card:active:not(.outOfStock) {
+  transform: scale(0.97);
+}
+
+.outOfStock { opacity: 0.55; cursor: not-allowed; }
+
+.imageWrapper {
+  width: 100%;
+  aspect-ratio: 1;
+  background: #111827;
+  border-radius: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin-bottom: 10px;
+}
+
+.emoji { font-size: 36px; line-height: 1; }
+
+.info { display: flex; flex-direction: column; gap: 4px; }
+
+.name {
+  font-family: 'Cairo', sans-serif;
+  font-size: 13px; font-weight: 700;
+  color: #f3f4f6;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+
+.category {
+  font-size: 11px; color: #6b7280; font-weight: 500;
+}
+
+.footer { display: flex; align-items: center; justify-content: space-between; margin-top: 4px; }
+
+.price {
+  font-family: 'Cairo', sans-serif;
+  font-size: 14px; font-weight: 800;
+  color: #10b981;
+}
+
+.stock {
+  font-size: 11px; color: #6b7280;
+  background: #111827;
+  padding: 2px 6px; border-radius: 6px;
+}
+
+.lowStock { color: #f59e0b; }
+
+.overlay {
+  position: absolute; inset: 0;
+  background: rgba(17,24,39,.7);
+  display: flex; align-items: center; justify-content: center;
+  font-family: 'Cairo', sans-serif;
+  font-size: 13px; font-weight: 700;
+  color: #ef4444;
+  border-radius: 16px;
+}

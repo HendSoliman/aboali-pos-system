@@ -1,0 +1,56 @@
+/* src/components/Button/Button.module.css */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  font-family: 'Cairo', sans-serif;
+  font-weight: 700;
+  font-size: 14px;
+  border: none;
+  border-radius: 12px;
+  cursor: pointer;
+  padding: 10px 20px;
+  transition: background 0.2s, opacity 0.2s, transform 0.1s;
+  white-space: nowrap;
+  direction: rtl;
+}
+
+.btn:active  { transform: scale(0.97); }
+.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+
+/* Variants */
+.primary {
+  background: var(--accent);
+  color: #fff;
+}
+.primary:hover:not(:disabled)  { background: var(--accent-hover); }
+
+.success {
+  background: var(--success);
+  color: #fff;
+}
+.success:hover:not(:disabled)  { opacity: 0.88; }
+
+.danger {
+  background: var(--danger);
+  color: #fff;
+}
+.danger:hover:not(:disabled)   { opacity: 0.88; }
+
+.ghost {
+  background: var(--bg-hover);
+  color: var(--text-primary);
+  border: 1px solid var(--border);
+}
+.ghost:hover:not(:disabled)    { background: var(--border); }
+
+/* Sizes */
+.sm { padding: 7px 14px; font-size: 12px; border-radius: 9px; }
+.lg { padding: 13px 28px; font-size: 16px; }
+
+.iconOnly {
+  padding: 9px;
+  border-radius: 10px;
+}
