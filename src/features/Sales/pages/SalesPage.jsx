@@ -1,9 +1,10 @@
 // ─── SalesPage.jsx ───────────────────────────────────────────────────────────
-import React, { useState, useMemo, useCallback, useEffect } from 'react';
+import React, { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import Receipt from '../components/Receipt/Receipt';
 import { useTheme } from '../../../context/ThemeContext';
-import { PRODUCTS } from '../../../data/products';
+import { productsApi, ordersApi } from '../../../services/api';
 
+// ─── Helpers ──────────────────────────────────────────────────────────────────
 const formatCurrency = (amount = 0) =>
   new Intl.NumberFormat('ar-EG', { style: 'currency', currency: 'EGP' }).format(amount);
 
@@ -26,6 +27,84 @@ const makeTokens = (theme) => ({
   input   : theme === 'dark' ? '#111827' : '#f9fafb',
 });
 
+// ─── Skeleton Card ────────────────────────────────────────────────────────────
+function SkeletonCard({ t }) {
+  return (
+    <div style={{
+      background: t.surface, border: `1.5px solid ${t.border}`,
+      borderRadius: 16, padding: 16, display: 'flex',
+      flexDirection: 'column', gap: 10, overflow: 'hidden',
+    }}>
+      <div style={{
+        width: 40, height: 40, borderRadius: 10,
+        background: t.border, animation: 'skeleton-pulse 1.5s ease-in-out infinite',
+      }} />
+      <div style={{
+        width: '80%', height: 12, borderRadius: 6,
+        background: t.border, animation: 'skeleton-pulse 1.5s ease-in-out infinite',
+      }} />
+      <div style={{
+        width: '50%', height: 10, borderRadius: 6,
+        background: t.border, animation: 'skeleton-pulse 1.5s ease-in-out infinite 0.2s',
+      }} />
+      <style>{`
+        @keyframes skeleton-pulse {
+          0%, 100% { opacity: 1; }
+          50%       { opacity: 0.4; }
+        }
+      `}</style>
+    </div>
+  );
+}
+
+// ─── Error Banner ─────────────────────────────────────────────────────────────
+function ErrorBanner({ message, onRetry, t }) {
+  return (
+    <div style={{
+      background: '#7f1d1d33', border: '1px solid #ef444466',
+      borderRadius: 12, padding: '12px 16px', marginBottom: 16,
+      display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12,
+    }}>
+      <span style={{ fontFamily: 'Cairo', fontSize: 13, color: '#ef4444' }}>
+        ⚠️ {message}
+      </span>
+      {onRetry && (
+        <button
+          onClick={onRetry}
+          style={{
+            background: '#ef4444', border: 'none', borderRadius: 8,
+            padding: '5px 12px', fontFamily: 'Cairo', fontSize: 12,
+            fontWeight: 700, color: '#fff', cursor: 'pointer', whiteSpace: 'nowrap',
+          }}
+        >
+          إعادة المحاولة
+        </button>
+      )}
+    </div>
+  );
+}
+
+// ─── Toast Notification ───────────────────────────────────────────────────────
+function Toast({ message, type = 'success', visible }) {
+  return (
+    <div style={{
+      position: 'fixed', bottom: 32, left: '50%',
+      transform: `translateX(-50%) translateY(${visible ? 0 : 20}px)`,
+      opacity: visible ? 1 : 0,
+      transition: 'all 0.3s ease',
+      background: type === 'success' ? '#064e3b' : '#7f1d1d',
+      border: `1px solid ${type === 'success' ? '#10b981' : '#ef4444'}`,
+      borderRadius: 14, padding: '12px 24px',
+      fontFamily: 'Cairo', fontSize: 14, fontWeight: 700,
+      color: type === 'success' ? '#10b981' : '#ef4444',
+      zIndex: 9999, boxShadow: '0 8px 32px rgba(0,0,0,0.4)',
+      pointerEvents: 'none',
+    }}>
+      {type === 'success' ? '✅' : '❌'} {message}
+    </div>
+  );
+}
+
 // ─── Loose Product Modal ──────────────────────────────────────────────────────
 function LooseProductModal({ isOpen, product, onClose, onAddToCart, t }) {
   const [weightValue, setWeightValue] = useState('');
@@ -47,13 +126,13 @@ function LooseProductModal({ isOpen, product, onClose, onAddToCart, t }) {
     if (!isValid || !product) return;
     onAddToCart({
       ...product,
-      id          : `${product.id}_${Date.now()}`,
-      quantity    : weightInKg,
-      weightValue : parseFloat(weightValue),
+      id         : `${product.id}_${Date.now()}`,
+      quantity   : weightInKg,
+      weightValue: parseFloat(weightValue),
       weightUnit,
-      price       : product.price,
+      price      : product.price,
       totalPrice,
-      isLoose     : true,
+      isLoose    : true,
     });
     setWeightValue('');
     setWeightUnit('كجم');
@@ -78,14 +157,14 @@ function LooseProductModal({ isOpen, product, onClose, onAddToCart, t }) {
       style={{
         position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)',
         display: 'flex', alignItems: 'center', justifyContent: 'center',
-        zIndex: 1000, backdropFilter: 'blur(4px)'
+        zIndex: 1000, backdropFilter: 'blur(4px)',
       }}
     >
       <div
         onClick={e => e.stopPropagation()}
         style={{
           background: t.surface, borderRadius: 20, padding: 32, width: 380,
-          border: `1px solid ${t.border}`, boxShadow: '0 25px 50px rgba(0,0,0,0.5)'
+          border: `1px solid ${t.border}`, boxShadow: '0 25px 50px rgba(0,0,0,0.5)',
         }}
       >
         {/* Header */}
@@ -97,7 +176,7 @@ function LooseProductModal({ isOpen, product, onClose, onAddToCart, t }) {
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: 6,
             background: '#f59e0b22', border: '1px solid #f59e0b55',
-            borderRadius: 20, padding: '4px 12px', marginTop: 8
+            borderRadius: 20, padding: '4px 12px', marginTop: 8,
           }}>
             <span style={{ fontSize: 14 }}>⚖️</span>
             <span style={{ fontFamily: 'Cairo', fontSize: 13, color: '#f59e0b', fontWeight: 700 }}>
@@ -117,13 +196,12 @@ function LooseProductModal({ isOpen, product, onClose, onAddToCart, t }) {
                 key={unit}
                 onClick={() => setWeightUnit(unit)}
                 style={{
-                  flex: 1, padding: '10px 0', borderRadius: 12,
-                  border: '2px solid',
+                  flex: 1, padding: '10px 0', borderRadius: 12, border: '2px solid',
                   borderColor : weightUnit === unit ? '#10b981' : t.border,
                   background  : weightUnit === unit ? '#064e3b'  : t.input,
                   color       : weightUnit === unit ? '#10b981'  : t.subtext,
-                  fontFamily: 'Cairo', fontSize: 15, fontWeight: 700, cursor: 'pointer',
-                  transition: 'all .15s'
+                  fontFamily: 'Cairo', fontSize: 15, fontWeight: 700,
+                  cursor: 'pointer', transition: 'all .15s',
                 }}
               >
                 {unit === 'كجم' ? '⚖️ كيلوجرام' : '🔬 جرام'}
@@ -152,12 +230,12 @@ function LooseProductModal({ isOpen, product, onClose, onAddToCart, t }) {
                 border: `2px solid ${isValid ? '#10b981' : t.border}`,
                 borderRadius: 12, color: t.text, fontFamily: 'Cairo',
                 fontSize: 18, fontWeight: 700, boxSizing: 'border-box',
-                textAlign: 'center', transition: 'border-color .2s', outline: 'none'
+                textAlign: 'center', transition: 'border-color .2s', outline: 'none',
               }}
             />
             <span style={{
               position: 'absolute', left: 14, top: '50%', transform: 'translateY(-50%)',
-              fontFamily: 'Cairo', color: t.subtext, fontSize: 13
+              fontFamily: 'Cairo', color: t.subtext, fontSize: 13,
             }}>{weightUnit}</span>
           </div>
         </div>
@@ -165,15 +243,15 @@ function LooseProductModal({ isOpen, product, onClose, onAddToCart, t }) {
         {/* Live Price Preview */}
         <div style={{
           background: t.input, borderRadius: 14, padding: 16, marginBottom: 20,
-          border: `1px solid ${isValid ? '#10b981' : t.border}`, transition: 'border-color .2s'
+          border: `1px solid ${isValid ? '#10b981' : t.border}`, transition: 'border-color .2s',
         }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 8 }}>
             <span style={{ fontFamily: 'Cairo', color: t.subtext, fontSize: 13 }}>الكمية</span>
             <span style={{ fontFamily: 'Cairo', color: t.text, fontSize: 13, fontWeight: 600 }}>
               {weightValue
                 ? (weightUnit === 'جرام'
-                    ? `${weightValue} جرام (${(parseFloat(weightValue)/1000).toFixed(3)} كجم)`
-                    : `${weightValue} كجم`)
+                  ? `${weightValue} جرام (${(parseFloat(weightValue) / 1000).toFixed(3)} كجم)`
+                  : `${weightValue} كجم`)
                 : '—'}
             </span>
           </div>
@@ -195,7 +273,7 @@ function LooseProductModal({ isOpen, product, onClose, onAddToCart, t }) {
           <button onClick={handleClose} style={{
             flex: 1, padding: '13px 0', background: t.border, border: 'none',
             borderRadius: 12, fontFamily: 'Cairo', fontSize: 15, fontWeight: 700,
-            color: t.subtext, cursor: 'pointer'
+            color: t.subtext, cursor: 'pointer',
           }}>إلغاء</button>
           <button onClick={handleConfirm} disabled={!isValid} style={{
             flex: 2, padding: '13px 0',
@@ -203,8 +281,7 @@ function LooseProductModal({ isOpen, product, onClose, onAddToCart, t }) {
             border: 'none', borderRadius: 12, fontFamily: 'Cairo',
             fontSize: 15, fontWeight: 800,
             color: isValid ? '#fff' : t.subtext,
-            cursor: isValid ? 'pointer' : 'not-allowed',
-            transition: 'all .2s'
+            cursor: isValid ? 'pointer' : 'not-allowed', transition: 'all .2s',
           }}>
             ✓ إضافة للسلة
           </button>
@@ -216,18 +293,24 @@ function LooseProductModal({ isOpen, product, onClose, onAddToCart, t }) {
 
 // ─── Product Card ─────────────────────────────────────────────────────────────
 function ProductCard({ product, onClick, t }) {
+  const isOutOfStock = product.stock === 0;
+
   return (
     <button
-      onClick={onClick}
+      onClick={isOutOfStock ? undefined : onClick}
+      disabled={isOutOfStock}
       style={{
         background: t.surface,
         border: `1.5px solid ${product.isLoose ? '#78350f' : '#1e3a5f'}`,
-        borderRadius: 16, padding: 16, cursor: 'pointer', textAlign: 'right',
-        transition: 'transform .15s, box-shadow .15s, border-color .15s',
+        borderRadius: 16, padding: 16,
+        cursor: isOutOfStock ? 'not-allowed' : 'pointer',
+        textAlign: 'right', transition: 'transform .15s, box-shadow .15s, border-color .15s',
         position: 'relative', display: 'flex', flexDirection: 'column',
-        alignItems: 'flex-start', gap: 6
+        alignItems: 'flex-start', gap: 6,
+        opacity: isOutOfStock ? 0.55 : 1,
       }}
       onMouseEnter={e => {
+        if (isOutOfStock) return;
         e.currentTarget.style.transform = 'translateY(-3px)';
         e.currentTarget.style.boxShadow = product.isLoose
           ? '0 8px 24px rgba(245,158,11,0.15)'
@@ -240,16 +323,30 @@ function ProductCard({ product, onClick, t }) {
         e.currentTarget.style.borderColor = product.isLoose ? '#78350f' : '#1e3a5f';
       }}
     >
+      {/* Type badge */}
       <span style={{
         position: 'absolute', top: 8, left: 8,
         background: product.isLoose ? '#f59e0b' : '#3b82f6',
         color: product.isLoose ? '#000' : '#fff',
         fontSize: 9, fontWeight: 800, fontFamily: 'Cairo',
-        padding: '2px 8px', borderRadius: 20, letterSpacing: 0.5
+        padding: '2px 8px', borderRadius: 20, letterSpacing: 0.5,
       }}>
-        {product.isLoose ? ' بالوزن' : ' معبأ'}
+        {product.isLoose ? 'بالوزن' : 'معبأ'}
       </span>
-      <div style={{ fontSize: 34, marginTop: 4 }}>{product.emoji}</div>
+
+      {/* Out of stock badge */}
+      {isOutOfStock && (
+        <span style={{
+          position: 'absolute', top: 8, right: 8,
+          background: '#7f1d1d', color: '#ef4444',
+          fontSize: 9, fontWeight: 800, fontFamily: 'Cairo',
+          padding: '2px 8px', borderRadius: 20,
+        }}>
+          نفد المخزون
+        </span>
+      )}
+
+      <div style={{ fontSize: 34, marginTop: 4 }}>{product.emoji ?? '📦'}</div>
       <div style={{ fontFamily: 'Cairo', fontSize: 13, fontWeight: 700, color: t.text, lineHeight: 1.4 }}>
         {product.name}
       </div>
@@ -273,13 +370,13 @@ function CartItem({ item, onUpdate, onRemove, t }) {
   const btnStyle = {
     width: 28, height: 28, background: t.border, border: 'none',
     borderRadius: 7, color: t.text, cursor: 'pointer', fontSize: 14,
-    display: 'flex', alignItems: 'center', justifyContent: 'center'
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
   };
 
   return (
     <div style={{
       background: t.surface2, borderRadius: 12, padding: '10px 12px', marginBottom: 8,
-      border: `1px solid ${item.isLoose ? '#78350f' : t.border}`
+      border: `1px solid ${item.isLoose ? '#78350f' : t.border}`,
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div style={{ flex: 1 }}>
@@ -292,13 +389,13 @@ function CartItem({ item, onUpdate, onRemove, t }) {
               <span style={{
                 background: '#f59e0b22', border: '1px solid #f59e0b55',
                 borderRadius: 20, padding: '1px 8px',
-                fontFamily: 'Cairo', fontSize: 11, color: '#f59e0b', fontWeight: 700
+                fontFamily: 'Cairo', fontSize: 11, color: '#f59e0b', fontWeight: 700,
               }}>⚖️ {weightLabel}</span>
             ) : (
               <span style={{
                 background: '#3b82f622', border: '1px solid #3b82f655',
                 borderRadius: 20, padding: '1px 8px',
-                fontFamily: 'Cairo', fontSize: 11, color: '#60a5fa', fontWeight: 700
+                fontFamily: 'Cairo', fontSize: 11, color: '#60a5fa', fontWeight: 700,
               }}>📦 معبأ × {item.quantity}</span>
             )}
             <span style={{ fontFamily: 'Cairo', fontSize: 12, color: '#10b981', fontWeight: 700 }}>
@@ -316,7 +413,10 @@ function CartItem({ item, onUpdate, onRemove, t }) {
               <button onClick={() => onUpdate(item.id, item.quantity + 1)} style={btnStyle}>+</button>
             </>
           )}
-          <button onClick={() => onRemove(item.id)} style={{ ...btnStyle, background: '#7f1d1d', color: '#ef4444' }}>✕</button>
+          <button
+            onClick={() => onRemove(item.id)}
+            style={{ ...btnStyle, background: '#7f1d1d', color: '#ef4444' }}
+          >✕</button>
         </div>
       </div>
     </div>
@@ -328,19 +428,73 @@ export default function SalesPage() {
   const { theme } = useTheme();
   const t = useMemo(() => makeTokens(theme), [theme]);
 
+  // ── Products state ────────────────────────────────────────────────────────
+  const [products,       setProducts]       = useState([]);
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [productsError,  setProductsError]  = useState(null);
+
+  // ── Cart state ────────────────────────────────────────────────────────────
   const [cart,           setCart]           = useState([]);
   const [searchQuery,    setSearchQuery]    = useState('');
   const [activeCategory, setActiveCategory] = useState('الكل');
   const [looseProduct,   setLooseProduct]   = useState(null);
+
+  // ── Receipt state ─────────────────────────────────────────────────────────
   const [showReceipt,    setShowReceipt]    = useState(false);
   const [receiptData,    setReceiptData]    = useState(null);
+
+  // ── Order submission state ────────────────────────────────────────────────
+  const [isSubmitting,   setIsSubmitting]   = useState(false);
+  const [checkoutError,  setCheckoutError]  = useState(null);
+
+  // ── Toast state ───────────────────────────────────────────────────────────
+  const [toast,          setToast]          = useState({ visible: false, message: '', type: 'success' });
+  const toastTimerRef = useRef(null);
+
+  const showToast = useCallback((message, type = 'success') => {
+    if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
+    setToast({ visible: true, message, type });
+    toastTimerRef.current = setTimeout(() =>
+      setToast(prev => ({ ...prev, visible: false })), 3000);
+  }, []);
+
+  // ── Load products from API ────────────────────────────────────────────────
+  const loadProducts = useCallback(async (search = '') => {
+    setProductsLoading(true);
+    setProductsError(null);
+    try {
+      const res = await productsApi.getAll(search);
+      // res = { success, data: [...] }  OR  res = [...] depending on interceptor
+      const list = Array.isArray(res?.data) ? res.data
+                 : Array.isArray(res)       ? res
+                 : [];
+      setProducts(list);
+    } catch (err) {
+      setProductsError(err.message ?? 'فشل تحميل المنتجات');
+    } finally {
+      setProductsLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { loadProducts(); }, [loadProducts]);
+
+  // ── Debounced backend search ──────────────────────────────────────────────
+  const searchDebounceRef = useRef(null);
+  const handleSearchChange = useCallback((e) => {
+    const value = e.target.value;
+    setSearchQuery(value);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
+    searchDebounceRef.current = setTimeout(() => loadProducts(value), 400);
+  }, [loadProducts]);
 
   // ── Cart helpers ──────────────────────────────────────────────────────────
   const addToCart = useCallback((product) => {
     if (product.isLoose) { setLooseProduct(product); return; }
     setCart(prev => {
       const ex = prev.find(i => i.id === product.id && !i.isLoose);
-      if (ex) return prev.map(i => i.id === product.id && !i.isLoose ? { ...i, quantity: i.quantity + 1 } : i);
+      if (ex) return prev.map(i =>
+        i.id === product.id && !i.isLoose ? { ...i, quantity: i.quantity + 1 } : i
+      );
       return [...prev, { ...product, quantity: 1 }];
     });
   }, []);
@@ -354,8 +508,13 @@ export default function SalesPage() {
     setCart(prev => prev.filter(i => i.id !== id)), []);
 
   const updateQty = useCallback((id, qty) =>
-    setCart(prev => prev.map(i => i.id === id ? { ...i, quantity: Math.max(1, qty) } : i)), []);
+    setCart(prev => prev.map(i =>
+      i.id === id ? { ...i, quantity: Math.max(1, qty) } : i
+    )), []);
 
+  const clearCart = useCallback(() => setCart([]), []);
+
+  // ── Totals ────────────────────────────────────────────────────────────────
   const cartSubtotal = useMemo(() =>
     cart.reduce((sum, i) =>
       sum + (i.isLoose ? (i.totalPrice ?? i.price * i.quantity) : i.price * i.quantity), 0),
@@ -364,144 +523,246 @@ export default function SalesPage() {
   const discountAmount = 0;
   const cartTotal      = cartSubtotal - discountAmount;
 
-  // ── Checkout ──────────────────────────────────────────────────────────────
-  const handleCheckout = useCallback(() => {
-    if (cart.length === 0) return;
-    const orderData = {
-      invoiceNumber : `INV-${Date.now().toString(36).toUpperCase()}`.slice(-10),
-      date          : new Date(),
-      cashierName   : 'الحاج أبوعلي',
-      storeName     : 'علافة وعطارة الحاج أبو علي',
-      paymentMethod : 'نقدي',
-      amountPaid    : cartTotal,
-      change        : 0,
-      items: cart.filter(Boolean).map((item, idx) => ({
-        id         : item.id    ?? idx,
-        name       : item.name  ?? `صنف ${idx + 1}`,
-        emoji      : item.emoji ?? '📦',
-        price      : parseFloat(item.price ?? 0),
-        quantity   : parseFloat(item.quantity ?? 1),
-        isLoose    : item.isLoose ?? false,
-        weightValue: item.weightValue ?? null,
-        weightUnit : item.weightUnit  ?? null,
-        totalPrice : item.isLoose
+  // ── Checkout → POST /orders ───────────────────────────────────────────────
+  const handleCheckout = useCallback(async () => {
+    if (cart.length === 0 || isSubmitting) return;
+
+    // Build payload matching your exact API shape
+    const orderPayload = {
+      orderNumber  : `INV-${Date.now().toString(36).toUpperCase()}`.slice(-10),
+      status       : 'COMPLETED',
+      paymentMethod: 'CASH',
+      notes        : '',
+
+      items: cart.map(item => {
+        const itemSubtotal = item.isLoose
           ? (item.totalPrice ?? item.price * item.quantity)
-          : item.price * item.quantity,
-        weightLabel: item.isLoose ? formatWeight(item) : null,
-      })),
-      subtotal: cartSubtotal,
-      discount: discountAmount,
-      total   : cartTotal,
+          : item.price * item.quantity;
+        return {
+          productId: Number(item.id),
+          name     : item.name,
+          price    : parseFloat(item.price),
+          quantity : parseFloat(item.quantity),
+          subtotal : parseFloat(itemSubtotal.toFixed(2)),
+        };
+      }),
+
+      subtotal: parseFloat(cartSubtotal.toFixed(2)),
+      discount: parseFloat(discountAmount.toFixed(2)),
+      tax     : 0,
+      total   : parseFloat(cartTotal.toFixed(2)),
     };
-    setReceiptData(orderData);
-    setCart([]);
-    setShowReceipt(true);
-  }, [cart, cartSubtotal, discountAmount, cartTotal]);
 
-  // ── Filtering ─────────────────────────────────────────────────────────────
+    setIsSubmitting(true);
+    setCheckoutError(null);
+
+    try {
+      const res = await ordersApi.create(orderPayload);
+      // res = { success: true, data: { id, orderNumber, createdAt, ... } }
+      const savedOrder = res?.data ?? res;
+
+      // Build receipt from saved order (use backend's orderNumber & date)
+      const receipt = {
+        invoiceNumber : savedOrder.orderNumber ?? orderPayload.orderNumber,
+        date          : savedOrder.createdAt ? new Date(savedOrder.createdAt) : new Date(),
+        cashierName   : 'الحاج أبوعلي',
+        storeName     : 'علافة وعطارة الحاج أبو علي',
+        paymentMethod : 'نقدي',
+        amountPaid    : cartTotal,
+        change        : 0,
+        items         : cart.filter(Boolean).map((item, idx) => ({
+          id         : item.id          ?? idx,
+          name       : item.name        ?? `صنف ${idx + 1}`,
+          emoji      : item.emoji       ?? '📦',
+          price      : parseFloat(item.price   ?? 0),
+          quantity   : parseFloat(item.quantity ?? 1),
+          isLoose    : item.isLoose     ?? false,
+          weightValue: item.weightValue ?? null,
+          weightUnit : item.weightUnit  ?? null,
+          totalPrice : item.isLoose
+            ? (item.totalPrice ?? item.price * item.quantity)
+            : item.price * item.quantity,
+          weightLabel: item.isLoose ? formatWeight(item) : null,
+        })),
+        subtotal: cartSubtotal,
+        discount: discountAmount,
+        total   : cartTotal,
+      };
+
+      setCart([]);
+      setReceiptData(receipt);
+      setShowReceipt(true);
+      showToast('تم إتمام الطلب بنجاح ✓', 'success');
+
+    } catch (err) {
+      const msg = err.message ?? 'فشل في إتمام الطلب، حاول مرة أخرى';
+      setCheckoutError(msg);
+      showToast(msg, 'error');
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [cart, cartSubtotal, discountAmount, cartTotal, isSubmitting, showToast]);
+
+  // ── Categories (derived from loaded products) ─────────────────────────────
   const categories = useMemo(() => {
-    const cats = [...new Set(PRODUCTS.map(p => p.category))];
+    const cats = [...new Set(products.map(p => p.category).filter(Boolean))];
     return ['الكل', ...cats];
-  }, []);
+  }, [products]);
 
+  // ── Client-side category filter (search is handled by backend) ────────────
   const filteredProducts = useMemo(() =>
-    PRODUCTS.filter(p => {
-      const matchCat   = activeCategory === 'الكل' || p.category === activeCategory;
-      const matchQuery = p.name.includes(searchQuery);
-      return matchCat && matchQuery;
-    }),
-  [activeCategory, searchQuery]);
+    products.filter(p =>
+      activeCategory === 'الكل' || p.category === activeCategory
+    ),
+  [products, activeCategory]);
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div dir="rtl" style={{ display: 'flex', height: '100vh', background: t.main, overflow: 'hidden' }}>
 
-      {/* ── Cart Panel ──────────────────────────────────────────── */}
+      {/* ── Cart Panel ────────────────────────────────────────────────────── */}
       <aside style={{
         width: 360, background: t.surface,
-        borderLeft: `1px solid ${t.border}`, display: 'flex', flexDirection: 'column',
-        flexShrink: 0
+        borderLeft: `1px solid ${t.border}`,
+        display: 'flex', flexDirection: 'column', flexShrink: 0,
       }}>
+        {/* Cart Header */}
         <div style={{
           padding: '16px 20px', fontFamily: 'Cairo', fontSize: 18,
           fontWeight: 800, color: t.text, borderBottom: `1px solid ${t.border}`,
-          display: 'flex', alignItems: 'center', gap: 8
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
         }}>
-          🛒 سلة المشتريات
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            🛒 سلة المشتريات
+            {cart.length > 0 && (
+              <span style={{
+                background: '#10b981', color: '#fff', borderRadius: 20,
+                fontSize: 12, fontWeight: 800, padding: '1px 8px', fontFamily: 'Cairo',
+              }}>{cart.length}</span>
+            )}
+          </div>
           {cart.length > 0 && (
-            <span style={{
-              background: '#10b981', color: '#fff', borderRadius: 20,
-              fontSize: 12, fontWeight: 800, padding: '1px 8px', fontFamily: 'Cairo'
-            }}>{cart.length}</span>
+            <button
+              onClick={clearCart}
+              style={{
+                background: 'none', border: 'none', fontFamily: 'Cairo',
+                fontSize: 12, color: '#ef4444', cursor: 'pointer', fontWeight: 700,
+              }}
+            >
+              مسح الكل ✕
+            </button>
           )}
         </div>
 
-        {/* Items */}
+        {/* Cart Items */}
         <div style={{ flex: 1, overflowY: 'auto', padding: 12 }}>
           {cart.length === 0 ? (
             <div style={{ textAlign: 'center', color: t.subtext, fontFamily: 'Cairo', marginTop: 60 }}>
               <div style={{ fontSize: 48, marginBottom: 12 }}>🛒</div>
               <div style={{ fontSize: 14 }}>السلة فارغة</div>
+              <div style={{ fontSize: 12, marginTop: 6, color: t.subtext }}>أضف منتجاً للبدء</div>
             </div>
           ) : (
             cart.map(item => (
-              <CartItem key={item.id} item={item} onUpdate={updateQty} onRemove={removeFromCart} t={t} />
+              <CartItem
+                key={item.id}
+                item={item}
+                onUpdate={updateQty}
+                onRemove={removeFromCart}
+                t={t}
+              />
             ))
           )}
         </div>
 
-        {/* Totals */}
+        {/* Totals & Checkout */}
         <div style={{ padding: 16, borderTop: `1px solid ${t.border}` }}>
-          {[
-            { label: 'المجموع الفرعي', value: cartSubtotal, color: t.subtext },
-            ...(discountAmount > 0 ? [{ label: 'الخصم', value: -discountAmount, color: '#f59e0b' }] : []),
-          ].map(({ label, value, color }) => (
-            <div key={label} style={{
-              display: 'flex', justifyContent: 'space-between',
-              fontFamily: 'Cairo', color, marginBottom: 8, fontSize: 13
+          {/* Checkout error */}
+          {checkoutError && (
+            <div style={{
+              background: '#7f1d1d33', border: '1px solid #ef444466',
+              borderRadius: 10, padding: '8px 12px', marginBottom: 12,
+              fontFamily: 'Cairo', fontSize: 12, color: '#ef4444',
             }}>
-              <span>{label}</span>
-              <span>{formatCurrency(Math.abs(value))}</span>
+              ⚠️ {checkoutError}
             </div>
-          ))}
-          <div style={{ height: 1, background: t.border, margin: '10px 0' }} />
+          )}
+
+          {/* Subtotal row */}
           <div style={{
             display: 'flex', justifyContent: 'space-between',
-            fontFamily: 'Cairo', color: t.text, fontSize: 17, fontWeight: 800, marginBottom: 16
+            fontFamily: 'Cairo', color: t.subtext, marginBottom: 8, fontSize: 13,
+          }}>
+            <span>المجموع الفرعي</span>
+            <span>{formatCurrency(cartSubtotal)}</span>
+          </div>
+
+          {/* Discount row (only if > 0) */}
+          {discountAmount > 0 && (
+            <div style={{
+              display: 'flex', justifyContent: 'space-between',
+              fontFamily: 'Cairo', color: '#f59e0b', marginBottom: 8, fontSize: 13,
+            }}>
+              <span>الخصم</span>
+              <span>− {formatCurrency(discountAmount)}</span>
+            </div>
+          )}
+
+          <div style={{ height: 1, background: t.border, margin: '10px 0' }} />
+
+          {/* Total */}
+          <div style={{
+            display: 'flex', justifyContent: 'space-between',
+            fontFamily: 'Cairo', color: t.text, fontSize: 17, fontWeight: 800, marginBottom: 16,
           }}>
             <span>الإجمالي</span>
             <span style={{ color: '#10b981' }}>{formatCurrency(cartTotal)}</span>
           </div>
+
+          {/* Checkout Button */}
           <button
             onClick={handleCheckout}
-            disabled={cart.length === 0}
+            disabled={cart.length === 0 || isSubmitting}
             style={{
               width: '100%', padding: '14px', border: 'none', borderRadius: 14,
-              background: cart.length ? '#10b981' : t.border,
+              background: cart.length && !isSubmitting ? '#10b981' : t.border,
               fontFamily: 'Cairo', fontSize: 16, fontWeight: 800,
-              color: cart.length ? '#fff' : t.subtext,
-              cursor: cart.length ? 'pointer' : 'not-allowed',
-              transition: 'all .2s'
+              color: cart.length && !isSubmitting ? '#fff' : t.subtext,
+              cursor: cart.length && !isSubmitting ? 'pointer' : 'not-allowed',
+              transition: 'all .2s', display: 'flex', alignItems: 'center',
+              justifyContent: 'center', gap: 8,
             }}
           >
-            إتمام الشراء ←
+            {isSubmitting ? (
+              <>
+                <span style={{
+                  width: 16, height: 16, border: '2px solid #ffffff44',
+                  borderTopColor: '#fff', borderRadius: '50%',
+                  animation: 'spin 0.7s linear infinite', display: 'inline-block',
+                }} />
+                جارٍ الحفظ...
+              </>
+            ) : (
+              'إتمام الشراء ←'
+            )}
           </button>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </div>
       </aside>
 
-      {/* ── Products Panel ───────────────────────────────────────── */}
+      {/* ── Products Panel ────────────────────────────────────────────────── */}
       <main style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
 
-        {/* Legend */}
+        {/* Type Legend */}
         <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
           {[
             { color: '#f59e0b', bg: '#f59e0b22', border: '#f59e0b55', label: '⚖️ منتجات بالوزن' },
-            { color: '#3b82f6', bg: '#3b82f622', border: '#3b82f655', label: '📦 منتجات معبأة' },
+            { color: '#3b82f6', bg: '#3b82f622', border: '#3b82f655', label: '📦 منتجات معبأة'  },
           ].map(({ color, bg, border, label }) => (
             <div key={label} style={{
               background: bg, border: `1px solid ${border}`,
               borderRadius: 20, padding: '5px 14px',
-              fontFamily: 'Cairo', fontSize: 12, color, fontWeight: 700
+              fontFamily: 'Cairo', fontSize: 12, color, fontWeight: 700,
             }}>{label}</div>
           ))}
         </div>
@@ -510,42 +771,77 @@ export default function SalesPage() {
         <input
           placeholder="🔍 ابحث عن منتج..."
           value={searchQuery}
-          onChange={e => setSearchQuery(e.target.value)}
+          onChange={handleSearchChange}
           style={{
             width: '100%', padding: '12px 16px', background: t.surface,
             border: `1.5px solid ${t.border}`, borderRadius: 12, color: t.text,
             fontFamily: 'Cairo', fontSize: 14, marginBottom: 16,
-            boxSizing: 'border-box', outline: 'none'
+            boxSizing: 'border-box', outline: 'none',
           }}
         />
 
-        {/* Categories */}
-        <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
-          {categories.map(cat => (
-            <button key={cat} onClick={() => setActiveCategory(cat)} style={{
-              padding: '6px 16px', borderRadius: 20, border: '1.5px solid',
-              borderColor : activeCategory === cat ? '#10b981' : t.border,
-              background  : activeCategory === cat ? '#064e3b'  : t.surface,
-              color       : activeCategory === cat ? '#10b981'  : t.subtext,
-              fontFamily: 'Cairo', fontSize: 13, fontWeight: 600, cursor: 'pointer',
-              transition: 'all .15s'
-            }}>{cat}</button>
-          ))}
-        </div>
+        {/* Products load error */}
+        {productsError && (
+          <ErrorBanner
+            message={productsError}
+            onRetry={() => loadProducts(searchQuery)}
+            t={t}
+          />
+        )}
 
-        {/* Grid */}
+        {/* Categories */}
+        {!productsLoading && categories.length > 1 && (
+          <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
+            {categories.map(cat => (
+              <button
+                key={cat}
+                onClick={() => setActiveCategory(cat)}
+                style={{
+                  padding: '6px 16px', borderRadius: 20, border: '1.5px solid',
+                  borderColor : activeCategory === cat ? '#10b981' : t.border,
+                  background  : activeCategory === cat ? '#064e3b'  : t.surface,
+                  color       : activeCategory === cat ? '#10b981'  : t.subtext,
+                  fontFamily: 'Cairo', fontSize: 13, fontWeight: 600,
+                  cursor: 'pointer', transition: 'all .15s',
+                }}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Product Grid */}
         <div style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))',
-          gap: 12
+          gap: 12,
         }}>
-          {filteredProducts.map(product => (
-            <ProductCard key={product.id} product={product} onClick={() => addToCart(product)} t={t} />
-          ))}
+          {productsLoading
+            ? Array.from({ length: 12 }).map((_, i) => <SkeletonCard key={i} t={t} />)
+            : filteredProducts.length === 0
+              ? (
+                <div style={{
+                  gridColumn: '1 / -1', textAlign: 'center',
+                  color: t.subtext, fontFamily: 'Cairo', paddingTop: 60,
+                }}>
+                  <div style={{ fontSize: 48, marginBottom: 12 }}>🔍</div>
+                  <div style={{ fontSize: 15 }}>لا توجد منتجات مطابقة</div>
+                </div>
+              )
+              : filteredProducts.map(product => (
+                <ProductCard
+                  key={product.id}
+                  product={product}
+                  onClick={() => addToCart(product)}
+                  t={t}
+                />
+              ))
+          }
         </div>
       </main>
 
-      {/* ── Loose Modal ──────────────────────────────────────────── */}
+      {/* ── Loose Weight Modal ────────────────────────────────────────────── */}
       <LooseProductModal
         isOpen={!!looseProduct}
         product={looseProduct}
@@ -554,7 +850,7 @@ export default function SalesPage() {
         t={t}
       />
 
-      {/* ── Receipt ──────────────────────────────────────────────── */}
+      {/* ── Receipt Modal ─────────────────────────────────────────────────── */}
       {showReceipt && receiptData && (
         <Receipt
           isOpen={showReceipt}
@@ -562,6 +858,13 @@ export default function SalesPage() {
           onClose={() => { setShowReceipt(false); setReceiptData(null); }}
         />
       )}
+
+      {/* ── Toast ─────────────────────────────────────────────────────────── */}
+      <Toast
+        visible={toast.visible}
+        message={toast.message}
+        type={toast.type}
+      />
     </div>
   );
 }

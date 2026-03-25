@@ -11,6 +11,9 @@ const useSalesState = () => {
 //  const total          = subtotal - discountAmount + taxAmount;
   const total          = subtotal - discountAmount ;
   const itemCount      = store.cartItems.reduce((s, i) => s + i.quantity, 0);
+    // ── Add these alongside your existing useState declarations ──────────────────
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [error,        setError]        = useState(null);
 
   return {
     ...store,
