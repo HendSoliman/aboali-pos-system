@@ -1,38 +1,109 @@
+// src/features/Reports/components/InvoiceTable.jsx
 import React from 'react';
-import { formatCurrency, formatDateTime } from '../../../utils/formatters';
+import { useTheme } from '../../../context/ThemeContext';
 
-const MOCK = [
-  { id: 'INV-001', date: new Date(), items: 4, total: 182.5,  method: 'نقداً' },
-  { id: 'INV-002', date: new Date(), items: 2, total: 65.0,   method: 'بطاقة' },
-  { id: 'INV-003', date: new Date(), items: 7, total: 430.75, method: 'نقداً' },
-];
+const formatCurrency = (n = 0) =>
+  new Intl.NumberFormat('ar-EG', { style: 'currency', currency: 'EGP' }).format(n);
 
-const InvoiceTable = () => (
-  <div className="card overflow-hidden">
-    <div className="px-5 py-3 border-b border-dark-700">
-      <h3 className="font-cairo font-bold text-dark-100">آخر الفواتير</h3>
-    </div>
-    <table className="w-full">
-      <thead>
-        <tr className="bg-dark-900">
-          {['رقم الفاتورة', 'التاريخ', 'المنتجات', 'الإجمالي', 'الدفع'].map((h) => (
-            <th key={h} className="p-3 text-right font-cairo text-xs text-dark-400 font-bold">{h}</th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {MOCK.map((inv) => (
-          <tr key={inv.id} className="border-t border-dark-700 hover:bg-dark-700 transition-colors">
-            <td className="p-3 font-cairo text-sm text-primary-400 font-bold">{inv.id}</td>
-            <td className="p-3 font-cairo text-sm text-dark-300">{formatDateTime(inv.date)}</td>
-            <td className="p-3 font-cairo text-sm text-dark-300">{inv.items} منتج</td>
-            <td className="p-3 font-cairo text-sm font-bold text-dark-100">{formatCurrency(inv.total)}</td>
-            <td className="p-3 font-cairo text-sm text-dark-300">{inv.method}</td>
+const formatDate = (dateStr) => {
+  if (!dateStr) return '—';
+  return new Date(dateStr).toLocaleString('ar-EG', {
+    year: 'numeric', month: 'short', day: 'numeric',
+    hour: '2-digit', minute: '2-digit'
+  });
+};
+
+const STATUS_MAP = {
+  COMPLETED : { label: 'مكتمل',   bg: '#064e3b', color: '#10b981' },
+  PENDING   : { label: 'معلق',    bg: '#1e3a5f', color: '#3b82f6' },
+  CANCELLED : { label: 'ملغي',    bg: '#7f1d1d', color: '#ef4444' },
+};
+
+export default function InvoiceTable({ orders = [] }) {
+  const { theme } = useTheme();
+  const isDark = theme === 'dark';
+
+  const t = {
+    surface : isDark ? '#1f2937' : '#ffffff',
+    surface2: isDark ? '#111827' : '#f9fafb',
+    border  : isDark ? '#374151' : '#e5e7eb',
+    text    : isDark ? '#f3f4f6' : '#111827',
+    subtext : isDark ? '#9ca3af' : '#6b7280',
+  };
+
+  if (!orders.length) {
+    return (
+      <div style={{
+        padding: 40, textAlign: 'center',
+        fontFamily: 'Cairo', color: t.subtext, fontSize: 14
+      }}>
+        <div style={{ fontSize: 36, marginBottom: 8 }}>🧾</div>
+        لا توجد فواتير في هذه الفترة
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'Cairo' }}>
+        <thead>
+          <tr style={{ background: t.surface2, borderBottom: `2px solid ${t.border}` }}>
+            {['رقم الفاتورة', 'التاريخ', 'طريقة الدفع', 'الإجمالي', 'الحالة'].map(h => (
+              <th key={h} style={{
+                padding: '12px 16px', textAlign: 'right',
+                color: t.subtext, fontSize: 12, fontWeight: 700, fontFamily: 'Cairo'
+              }}>{h}</th>
+            ))}
           </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-);
+        </thead>
+        <tbody>
+          {orders.map((order, i) => {
+            const statusInfo = STATUS_MAP[order.status] ?? { label: order.status, bg: '#374151', color: '#9ca3af' };
+            return (
+              <tr
+                key={order.id ?? i}
+                style={{
+                  borderBottom: `1px solid ${t.border}`,
+                  transition: 'background .15s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.background = t.surface2}
+                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+              >
+                {/* Invoice Number */}
+                <td style={{ padding: '12px 16px', color: '#10b981', fontSize: 13, fontWeight: 700 }}>
+                  {order.orderNumber ?? `#${order.id}`}
+                </td>
 
-export default InvoiceTable;
+                {/* Date */}
+                <td style={{ padding: '12px 16px', color: t.subtext, fontSize: 12 }}>
+                  {formatDate(order.createdAt)}
+                </td>
+
+                {/* Payment Method */}
+                <td style={{ padding: '12px 16px', color: t.text, fontSize: 13 }}>
+                  {order.paymentMethod === 'CASH' ? '💵 نقدي' : order.paymentMethod ?? '—'}
+                </td>
+
+                {/* Total */}
+                <td style={{ padding: '12px 16px', color: t.text, fontSize: 14, fontWeight: 800 }}>
+                  {formatCurrency(order.total ?? 0)}
+                </td>
+
+                {/* Status Badge */}
+                <td style={{ padding: '12px 16px' }}>
+                  <span style={{
+                    background: statusInfo.bg, color: statusInfo.color,
+                    borderRadius: 20, padding: '3px 10px',
+                    fontSize: 11, fontWeight: 700, fontFamily: 'Cairo'
+                  }}>
+                    {statusInfo.label}
+                  </span>
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
