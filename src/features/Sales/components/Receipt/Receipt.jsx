@@ -1,78 +1,60 @@
+// src/features/Sales/components/Receipt.jsx
 import React, { useRef } from 'react';
-import styles from './Receipt.module.css';
+import { X, Printer, Store, MapPin, Phone, CheckCircle } from 'lucide-react';
 
-// ─── Helpers ────────────────────────────────────────────────────────────────
-const pad   = (n)    => String(n).padStart(2, '0');
-const fmtDate = (d)  => {
-  try {
-    const dt = d instanceof Date ? d : new Date(d);
-    if (isNaN(dt)) throw new Error();
-    return `${pad(dt.getDate())}/${pad(dt.getMonth() + 1)}/${dt.getFullYear()}  ${pad(dt.getHours())}:${pad(dt.getMinutes())}`;
-  } catch { return '—'; }
-};
-const fmtNum  = (n)  => {
-  const v = parseFloat(n);
-  return isNaN(v) ? '0.00' : v.toFixed(2);
-};
-const genInvoice = () => `INV-${Date.now().toString(36).toUpperCase()}`;
+const Receipt = ({ isOpen, orderData, onClose, settings = {} }) => {
+  const printRef = useRef();
 
-// ─── Receipt Component ───────────────────────────────────────────────────────
-export default function Receipt({ isOpen, onClose, orderData }) {
-  const printRef = useRef(null);
+  if (!isOpen || !orderData) return null;
 
-  // ── Early exit (after hooks) ────────────────────────────────────────────
-  if (!isOpen) return null;
+  const storeName    = settings.storeName    || 'علافة وعطارة الحاج أبو علي';
+  const storePhone   = settings.storePhone   || '٠١٢٨٢٧٢٣٢٦';
+  const storeAddress = settings.storeAddress || 'مجاورة ٢٢ - مدينة ١٥ مايو';
 
-  // ── Safe-extract everything with defaults ───────────────────────────────
-  const {
-    items        = [],
-    subtotal     = 0,
-    discount     = 0,
-    tax          = 0,
-    total        = 0,
-    paymentMethod= 'نقدي',
-    amountPaid   = 0,
-    change       = 0,
-    cashierName  = 'البائع',
-    storeName    = 'نقطة البيع',
-    invoiceNumber= genInvoice(),
-    date         = new Date(),
-  } = orderData ?? {};
+  const items        = orderData.items        || orderData.orderItems || [];
+  const total        = orderData.total        || orderData.totalAmount || 0;
+  const paymentMethod= orderData.paymentMethod|| 'نقدي';
+  const orderNumber  = orderData.orderNumber  || orderData.id || '—';
+  const createdAt    = orderData.createdAt    || orderData.date || new Date().toISOString();
+  const paidAmount   = orderData.paidAmount   || total;
+  const change       = orderData.change       || 0;
+  const cashier      = orderData.cashier      || settings.cashierName || 'الحاج أبوعلي';
 
-  // ── Sanitise items array — filter out any undefined/null elements ───────
-  const safeItems = Array.isArray(items)
-    ? items.filter(item => item != null && typeof item === 'object')
-    : [];
+  const formatDate = (iso) => {
+    try {
+      const d = new Date(iso);
+      const time = d.toLocaleTimeString('ar-EG', { hour: '2-digit', minute: '2-digit' });
+      const date = d.toLocaleDateString('ar-EG', { day: '2-digit', month: '2-digit', year: 'numeric' });
+      return `${time} ${date}`;
+    } catch { return iso; }
+  };
 
-  // ── Print handler ───────────────────────────────────────────────────────
+  const fmt = (n) => `${Number(n).toFixed(2)} ج.م`;
+
   const handlePrint = () => {
-    const content = printRef.current?.innerHTML ?? '';
-    const win = window.open('', '_blank', 'width=420,height=700');
-    if (!win) return;
+    const content = printRef.current.innerHTML;
+    const win = window.open('', '_blank', 'width=400,height=700');
     win.document.write(`
-      <!DOCTYPE html>
-      <html dir="rtl" lang="ar">
-      <head>
-        <meta charset="UTF-8" />
-        <title>فاتورة - ${invoiceNumber}</title>
-        <link rel="preconnect" href="https://fonts.googleapis.com"/>
-        <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700;800&display=swap" rel="stylesheet"/>
-        <style>
-          * { margin:0; padding:0; box-sizing:border-box; }
-          body { font-family:'Cairo',sans-serif; background:#fff; color:#111; direction:rtl; padding:20px; }
-          h1 { font-size:18px; font-weight:800; text-align:center; margin-bottom:4px; }
-          p  { font-size:12px; color:#555; text-align:center; margin-bottom:2px; }
-          hr { border:none; border-top:1px dashed #ccc; margin:10px 0; }
-          table { width:100%; border-collapse:collapse; font-size:12px; }
-          th,td { padding:5px 2px; }
-          th { font-weight:700; border-bottom:1px dashed #ccc; }
-          .total-row td { font-weight:800; font-size:14px; padding-top:8px; border-top:1px dashed #ccc; }
-          .lbl { color:#666; }
-          .center { text-align:center; }
-          .green  { color:#059669; }
-        </style>
-      </head>
-      <body>${content}</body>
+      <html dir="rtl">
+        <head>
+          <meta charset="UTF-8"/>
+          <title>فاتورة ${orderNumber}</title>
+          <style>
+            * { margin:0; padding:0; box-sizing:border-box; }
+            body { font-family: 'Segoe UI', Tahoma, Arial, sans-serif; background:#fff; color:#111; padding:16px; width:320px; margin:0 auto; }
+            .sep { border:none; border-top:1px dashed #aaa; margin:10px 0; }
+            .row { display:flex; justify-content:space-between; font-size:13px; margin:4px 0; }
+            .label { color:#555; }
+            .bold { font-weight:700; }
+            .green { color:#16a34a; }
+            .center { text-align:center; }
+            .items-header { display:grid; grid-template-columns:1fr auto auto auto; gap:4px; font-size:11px; color:#888; margin:6px 0 4px; }
+            .item-row { display:grid; grid-template-columns:1fr auto auto auto; gap:4px; font-size:12px; padding:3px 0; border-bottom:1px solid #f0f0f0; }
+            .total-row { display:flex; justify-content:space-between; font-size:16px; font-weight:800; color:#16a34a; margin-top:8px; }
+            .badge { display:inline-block; background:#dcfce7; color:#16a34a; padding:2px 8px; border-radius:4px; font-size:12px; font-weight:700; }
+          </style>
+        </head>
+        <body>${content}</body>
       </html>
     `);
     win.document.close();
@@ -80,192 +62,251 @@ export default function Receipt({ isOpen, onClose, orderData }) {
     setTimeout(() => { win.print(); win.close(); }, 400);
   };
 
-  // ── Calculated values (safe) ────────────────────────────────────────────
-  const safeSubtotal = parseFloat(subtotal) || safeItems.reduce((s, it) => {
-    const price = parseFloat(it.price ?? it.unitPrice ?? 0);
-    const qty   = parseFloat(it.quantity ?? it.qty ?? 1);
-    return s + price * qty;
-  }, 0);
-
-  const safeDiscount   = parseFloat(discount)   || 0;
-  const safeTax        = parseFloat(tax)         || 0;
-  const safeTotal      = parseFloat(total)       || (safeSubtotal - safeDiscount + safeTax);
-  const safeAmountPaid = parseFloat(amountPaid)  || safeTotal;
-  const safeChange     = parseFloat(change)      || Math.max(0, safeAmountPaid - safeTotal);
-
-  // ─────────────────────────────────────────────────────────────────────────
   return (
-    <div className={styles.overlay} onClick={(e) => e.target === e.currentTarget && onClose?.()}>
-      <div className={styles.container}>
+    <>
+      {/* ── Backdrop ── */}
+      <div
+        onClick={onClose}
+        style={{
+          position: 'fixed', inset: 0,
+          background: 'rgba(0,0,0,0.55)',
+          backdropFilter: 'blur(4px)',
+          zIndex: 9998,
+        }}
+      />
 
-        {/* ── Toolbar ── */}
-        <div className={styles.toolbar}>
-          <span className={styles.toolbarTitle}>🧾 الفاتورة</span>
-          <div className={styles.toolbarActions}>
-            <button className={styles.printBtn} onClick={handlePrint}>
-              🖨️ طباعة
-            </button>
-            <button className={styles.closeBtn} onClick={() => onClose?.()}>✕</button>
+      {/* ── Modal Shell ── */}
+      <div style={{
+        position: 'fixed',
+        inset: 0,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        zIndex: 9999,
+        padding: '16px',
+      }}>
+        <div style={{
+          background: '#fff',
+          borderRadius: '16px',
+          width: '100%',
+          maxWidth: '420px',
+          maxHeight: '92vh',
+          display: 'flex',
+          flexDirection: 'column',
+          overflow: 'hidden',
+          boxShadow: '0 25px 60px rgba(0,0,0,0.35)',
+          direction: 'rtl',
+        }}>
+
+          {/* ── Top Action Bar (dark) ── */}
+          <div style={{
+            background: '#111827',
+            padding: '14px 18px',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            flexShrink: 0,
+          }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', color: '#fff', fontWeight: 700, fontSize: '15px' }}>
+              🧾 الفاتورة
+            </div>
+            <div style={{ display: 'flex', gap: '10px' }}>
+              <button
+                onClick={handlePrint}
+                style={{
+                  background: '#16a34a',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '8px 16px',
+                  fontWeight: 700,
+                  fontSize: '13px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '6px',
+                  fontFamily: 'inherit',
+                }}
+              >
+                <Printer size={15} /> طباعة
+              </button>
+              <button
+                onClick={onClose}
+                style={{
+                  background: 'rgba(255,255,255,0.12)',
+                  color: '#fff',
+                  border: 'none',
+                  borderRadius: '8px',
+                  padding: '8px 10px',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                }}
+              >
+                <X size={16} />
+              </button>
+            </div>
           </div>
-        </div>
 
-        {/* ── Scrollable Receipt ── */}
-        <div className={styles.receiptWrapper}>
-          <div className={styles.receipt} ref={printRef}>
+          {/* ── Scrollable Receipt Body ── */}
+          <div style={{ overflowY: 'auto', flex: 1 }}>
+            <div ref={printRef} style={{ background: '#fff', padding: '24px 20px', color: '#111' }}>
 
-            {/* Store Header */}
-            <div style={{ textAlign: 'center', marginBottom: 14 }}>
-              <div className={styles.storeIcon}>🏪</div>
-              <div className={styles.storeName}>{storeName}</div>
-              <div className={styles.storeMeta}>
-                <span>📞 ٠١٢٨٢٧٢٣٣٢٦</span>
-                <span>📍 مجاورة ٢٢ - مدينة ١٥ مايو </span>
+              {/* Store Header */}
+              <div style={{ textAlign: 'center', marginBottom: '20px' }}>
+                <div style={{
+                  width: '52px', height: '52px',
+                  background: '#f0fdf4',
+                  border: '2px solid #bbf7d0',
+                  borderRadius: '14px',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  fontSize: '24px',
+                  margin: '0 auto 12px',
+                }}>🌿</div>
+                <div style={{ fontSize: '20px', fontWeight: 800, color: '#111', marginBottom: '4px' }}>
+                  {storeName}
+                </div>
+                <div style={{ fontSize: '13px', color: '#555', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px', marginBottom: '2px' }}>
+                  <Phone size={11} /> {storePhone}
+                </div>
+                <div style={{ fontSize: '13px', color: '#555', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '4px' }}>
+                  <MapPin size={11} /> {storeAddress}
+                </div>
               </div>
-            </div>
 
-            <hr className={styles.dashed} />
+              {/* Dashed Separator */}
+              <div style={{ borderTop: '1.5px dashed #d1d5db', margin: '16px 0' }} />
 
-            {/* Invoice Meta */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10 }}>
-              <div className={styles.metaCol}>
-                <span style={{ fontSize: 11, color: '#9ca3af' }}>رقم الفاتورة</span>
-                <span style={{ fontSize: 13, color: '#f3f4f6', fontWeight: 700 }}>{invoiceNumber}</span>
-                <span style={{ fontSize: 11, color: '#9ca3af', marginTop: 6 }}>البائع</span>
-                <span style={{ fontSize: 12, color: '#d1d5db' }}>{cashierName}</span>
-              </div>
-              <div className={`${styles.metaCol} ${styles.metaColRight}`}>
-                <span style={{ fontSize: 11, color: '#9ca3af' }}>التاريخ والوقت</span>
-                <span style={{ fontSize: 12, color: '#d1d5db' }}>{fmtDate(date)}</span>
-                <span style={{ marginTop: 6 }}>
-                  <span className={styles.paidBadge}>✔ مدفوعة</span>
-                </span>
-              </div>
-            </div>
-
-            <hr className={styles.dashed} />
-
-            {/* Items Table Header */}
-            <div style={{
-              display: 'grid',
-              gridTemplateColumns: '1fr auto auto auto',
-              gap: '0 8px',
-              padding: '6px 0',
-              fontSize: 11,
-              color: '#6b7280',
-              borderBottom: '1px dashed #374151',
-              marginBottom: 6,
-            }}>
-              <span>الصنف</span>
-              <span style={{ textAlign: 'center' }}>الكمية</span>
-              <span style={{ textAlign: 'center' }}>السعر</span>
-              <span style={{ textAlign: 'left' }}>الإجمالي</span>
-            </div>
-
-            {/* Items — fully null-safe */}
-            {safeItems.length === 0 ? (
-              <div style={{ textAlign: 'center', color: '#6b7280', fontSize: 13, padding: '16px 0' }}>
-                لا توجد أصناف
-              </div>
-            ) : (
-              safeItems.map((item, idx) => {
-                // ── null-safe field extraction ──
-                const itemId    = item.id    ?? item._id   ?? idx;
-                const itemName  = item.name  ?? item.title ?? `صنف ${idx + 1}`;
-                const itemEmoji = item.emoji ?? '📦';
-                const itemPrice = parseFloat(item.price ?? item.unitPrice ?? 0);
-                const itemQty   = parseFloat(item.quantity ?? item.qty ?? 1);
-                const itemUnit  = item.unit  ?? item.unitLabel ?? null;
-                const itemTotal = itemPrice * itemQty;
-
-                return (
-                  <div key={`${itemId}-${idx}`} style={{
-                    display: 'grid',
-                    gridTemplateColumns: '1fr auto auto auto',
-                    gap: '0 8px',
-                    padding: '7px 0',
-                    borderBottom: '1px solid #1f2937',
-                    alignItems: 'center',
+              {/* Meta Info Grid */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '10px', marginBottom: '12px' }}>
+                <div>
+                  <div style={{ fontSize: '11px', color: '#9ca3af', marginBottom: '2px' }}>رقم الفاتورة</div>
+                  <div style={{ fontSize: '13px', fontWeight: 700, color: '#16a34a' }}>{orderNumber}</div>
+                </div>
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ fontSize: '11px', color: '#9ca3af', marginBottom: '2px' }}>التاريخ والوقت</div>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>{formatDate(createdAt)}</div>
+                </div>
+                <div>
+                  <div style={{ fontSize: '11px', color: '#9ca3af', marginBottom: '2px' }}>البائع</div>
+                  <div style={{ fontSize: '13px', fontWeight: 600, color: '#374151' }}>{cashier}</div>
+                </div>
+                <div style={{ textAlign: 'left' }}>
+                  <div style={{ fontSize: '11px', color: '#9ca3af', marginBottom: '2px' }}>الحالة</div>
+                  <span style={{
+                    background: '#dcfce7', color: '#16a34a',
+                    padding: '2px 10px', borderRadius: '20px',
+                    fontSize: '12px', fontWeight: 700,
+                    display: 'inline-flex', alignItems: 'center', gap: '4px',
                   }}>
-                    {/* Name */}
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                      <span style={{ fontSize: 16 }}>{itemEmoji}</span>
-                      <div>
-                        <div style={{ fontSize: 12, color: '#f3f4f6', fontWeight: 600 }}>{itemName}</div>
-                        {itemUnit && (
-                          <div style={{ fontSize: 10, color: '#10b981' }}>⚖️ {itemUnit}</div>
-                        )}
-                      </div>
-                    </div>
-                    {/* Qty */}
-                    <span style={{ fontSize: 12, color: '#d1d5db', textAlign: 'center' }}>
-                      {itemQty % 1 === 0 ? itemQty : itemQty.toFixed(3)}
-                    </span>
-                    {/* Unit Price */}
-                    <span style={{ fontSize: 12, color: '#9ca3af', textAlign: 'center' }}>
-                      {fmtNum(itemPrice)}
-                    </span>
-                    {/* Line Total */}
-                    <span style={{ fontSize: 13, color: '#34d399', textAlign: 'left', fontWeight: 700 }}>
-                      {fmtNum(itemTotal)}
-                    </span>
+                    <CheckCircle size={11} /> مدفوعة
+                  </span>
+                </div>
+              </div>
+
+              {/* Dashed Separator */}
+              <div style={{ borderTop: '1.5px dashed #d1d5db', margin: '16px 0' }} />
+
+              {/* Items Table Header */}
+              <div style={{
+                display: 'grid',
+                gridTemplateColumns: '1fr 40px 55px 65px',
+                gap: '4px',
+                fontSize: '11px',
+                color: '#9ca3af',
+                fontWeight: 600,
+                marginBottom: '6px',
+                textAlign: 'left',
+              }}>
+                <div style={{ textAlign: 'right' }}>الصنف</div>
+                <div style={{ textAlign: 'center' }}>الكمية</div>
+                <div style={{ textAlign: 'center' }}>السعر</div>
+                <div style={{ textAlign: 'left' }}>الإجمالي</div>
+              </div>
+
+              {/* Items */}
+              {items.map((item, i) => {
+                const name     = item.productName || item.name || `صنف ${i + 1}`;
+                const qty      = item.quantity    || 1;
+                const price    = item.unitPrice   || item.price || 0;
+                const subtotal = item.subtotal    || (qty * price);
+                return (
+                  <div
+                    key={i}
+                    style={{
+                      display: 'grid',
+                      gridTemplateColumns: '1fr 40px 55px 65px',
+                      gap: '4px',
+                      fontSize: '13px',
+                      padding: '7px 0',
+                      borderBottom: '1px solid #f3f4f6',
+                      alignItems: 'center',
+                      color: '#1f2937',
+                    }}
+                  >
+                    <div style={{ fontWeight: 600, textAlign: 'right' }}>{name}</div>
+                    <div style={{ textAlign: 'center', color: '#6b7280' }}>{qty}</div>
+                    <div style={{ textAlign: 'center', color: '#6b7280' }}>{Number(price).toFixed(2)}</div>
+                    <div style={{ textAlign: 'left', fontWeight: 700, color: '#16a34a' }}>{Number(subtotal).toFixed(2)}</div>
                   </div>
                 );
-              })
-            )}
+              })}
 
-            {/* Totals */}
-            <div className={styles.totals}>
-              <div className={styles.totalRow}>
-                <span>المجموع الفرعي</span>
-                <span>{fmtNum(safeSubtotal)} ج.م</span>
-              </div>
-              {safeDiscount > 0 && (
-                <div className={`${styles.totalRow} ${styles.discount}`}>
-                  <span>الخصم</span>
-                  <span>- {fmtNum(safeDiscount)} ج.م</span>
+              {/* Dashed Separator */}
+              <div style={{ borderTop: '1.5px dashed #d1d5db', margin: '16px 0' }} />
+
+              {/* Totals */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#6b7280' }}>
+                  <span>{fmt(total)}</span>
+                  <span>المجموع الفرعي</span>
                 </div>
-              )}
-              {safeTax > 0 && (
-                <div className={styles.totalRow}>
-                  <span>الضريبة (15%)</span>
-                  <span>{fmtNum(safeTax)} ج.م</span>
+
+                <div style={{
+                  display: 'flex', justifyContent: 'space-between',
+                  fontSize: '17px', fontWeight: 800,
+                  color: '#111',
+                  padding: '10px 14px',
+                  background: '#f9fafb',
+                  borderRadius: '10px',
+                  border: '1px solid #e5e7eb',
+                }}>
+                  <span style={{ color: '#16a34a' }}>{fmt(total)}</span>
+                  <span>💰 الإجمالي</span>
                 </div>
-              )}
-              <div className={`${styles.totalRow} ${styles.grandTotal}`}>
-                <span>🏷️ الإجمالي</span>
-                <span>{fmtNum(safeTotal)} ج.م</span>
-              </div>
-              <div className={styles.totalRow}>
-                <span>💳 طريقة الدفع</span>
-                <span style={{ color: '#60a5fa' }}>{paymentMethod}</span>
-              </div>
-              {safeAmountPaid > 0 && (
-                <div className={styles.totalRow}>
+
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#6b7280' }}>
+                  <span style={{ color: '#16a34a', fontWeight: 600 }}>{paymentMethod}</span>
+                  <span>🖥️ طريقة الدفع</span>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#6b7280' }}>
+                  <span>{fmt(paidAmount)}</span>
                   <span>المبلغ المدفوع</span>
-                  <span>{fmtNum(safeAmountPaid)} ج.م</span>
                 </div>
-              )}
-              {safeChange > 0 && (
-                <div className={styles.totalRow}>
-                  <span>الباقي</span>
-                  <span style={{ color: '#fbbf24' }}>{fmtNum(safeChange)} ج.م</span>
-                </div>
-              )}
-            </div>
-
-            {/* Footer */}
-            <div className={styles.receiptFooter}>
-              <div>شكراً لزيارتكم 🙏</div>
-              <div>نتمنى لكم تجربة تسوق ممتازة</div>
-              <div style={{ marginTop: 8, fontSize: 10, color: '#4b5563' }}>
-                للاستفسار: support@pos.sa
+                {change > 0 && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: '13px', color: '#6b7280' }}>
+                    <span style={{ color: '#2563eb', fontWeight: 600 }}>{fmt(change)}</span>
+                    <span>الباقي</span>
+                  </div>
+                )}
               </div>
-              <div className={styles.footerDots}>• • • • • • •</div>
-            </div>
 
-          </div>{/* /receipt */}
-        </div>{/* /receiptWrapper */}
-      </div>{/* /container */}
-    </div>
+              {/* Dashed Separator */}
+              <div style={{ borderTop: '1.5px dashed #d1d5db', margin: '16px 0' }} />
+
+              {/* Footer */}
+              <div style={{ textAlign: 'center', color: '#9ca3af', fontSize: '12px', lineHeight: '1.8' }}>
+                <div style={{ fontSize: '18px', marginBottom: '4px' }}>🙏</div>
+                <div style={{ fontWeight: 600, color: '#6b7280' }}>شكراً لزيارتكم</div>
+                <div>نتمنى لكم تجربة تسوق ممتازة</div>
+              </div>
+
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
   );
-}
+};
+
+export default Receipt;

@@ -1,109 +1,189 @@
 // src/features/Reports/components/InvoiceTable.jsx
 import React from 'react';
-import { useTheme } from '../../../context/ThemeContext';
+import { Eye, Printer } from 'lucide-react';
 
-const formatCurrency = (n = 0) =>
-  new Intl.NumberFormat('ar-EG', { style: 'currency', currency: 'EGP' }).format(n);
+const statusMap = {
+  COMPLETED : { label: 'مكتمل',   bg: '#064e3b', color: '#10b981', dot: '#10b981' },
+  PENDING   : { label: 'معلق',    bg: '#1c1917', color: '#f59e0b', dot: '#f59e0b' },
+  CANCELLED : { label: 'ملغي',    bg: '#450a0a', color: '#ef4444', dot: '#ef4444' },
+};
+
+const formatCurrencyLocal = (amount = 0) =>
+  new Intl.NumberFormat('ar-EG', { style: 'currency', currency: 'EGP' }).format(amount);
 
 const formatDate = (dateStr) => {
   if (!dateStr) return '—';
-  return new Date(dateStr).toLocaleString('ar-EG', {
+  const d = new Date(dateStr);
+  return d.toLocaleDateString('ar-EG', {
     year: 'numeric', month: 'short', day: 'numeric',
-    hour: '2-digit', minute: '2-digit'
+    hour: '2-digit', minute: '2-digit',
   });
 };
 
-const STATUS_MAP = {
-  COMPLETED : { label: 'مكتمل',   bg: '#064e3b', color: '#10b981' },
-  PENDING   : { label: 'معلق',    bg: '#1e3a5f', color: '#3b82f6' },
-  CANCELLED : { label: 'ملغي',    bg: '#7f1d1d', color: '#ef4444' },
-};
-
-export default function InvoiceTable({ orders = [] }) {
-  const { theme } = useTheme();
-  const isDark = theme === 'dark';
-
-  const t = {
-    surface : isDark ? '#1f2937' : '#ffffff',
-    surface2: isDark ? '#111827' : '#f9fafb',
-    border  : isDark ? '#374151' : '#e5e7eb',
-    text    : isDark ? '#f3f4f6' : '#111827',
-    subtext : isDark ? '#9ca3af' : '#6b7280',
-  };
+export default function InvoiceTable({ orders = [], loading = false, onRowClick }) {
+  if (loading) {
+    return (
+      <div style={{ padding: '32px 0', textAlign: 'center' }}>
+        {[...Array(5)].map((_, i) => (
+          <div key={i} style={{
+            height: 52, background: '#1f2937', borderRadius: 10,
+            marginBottom: 8, opacity: 1 - i * 0.15,
+            animation: 'pulse 1.5s ease-in-out infinite',
+          }} />
+        ))}
+      </div>
+    );
+  }
 
   if (!orders.length) {
     return (
       <div style={{
-        padding: 40, textAlign: 'center',
-        fontFamily: 'Cairo', color: t.subtext, fontSize: 14
+        textAlign: 'center', padding: '48px 0',
+        color: '#6b7280', fontFamily: 'Cairo',
       }}>
-        <div style={{ fontSize: 36, marginBottom: 8 }}>🧾</div>
-        لا توجد فواتير في هذه الفترة
+        <div style={{ fontSize: 48, marginBottom: 12 }}>🧾</div>
+        <div style={{ fontSize: 15 }}>لا توجد فواتير بعد</div>
       </div>
     );
   }
 
   return (
-    <div style={{ overflowX: 'auto' }}>
-      <table style={{ width: '100%', borderCollapse: 'collapse', fontFamily: 'Cairo' }}>
+    <div style={{ width: '100%', overflowX: 'auto' }}>
+      <table style={{
+        width: '100%', borderCollapse: 'separate', borderSpacing: '0 6px',
+        fontFamily: 'Cairo',
+      }}>
+        {/* ── Head ── */}
         <thead>
-          <tr style={{ background: t.surface2, borderBottom: `2px solid ${t.border}` }}>
-            {['رقم الفاتورة', 'التاريخ', 'طريقة الدفع', 'الإجمالي', 'الحالة'].map(h => (
+          <tr>
+            {['رقم الفاتورة', 'التاريخ', 'المنتجات', 'الحالة', 'الإجمالي', ''].map((h) => (
               <th key={h} style={{
-                padding: '12px 16px', textAlign: 'right',
-                color: t.subtext, fontSize: 12, fontWeight: 700, fontFamily: 'Cairo'
+                padding: '10px 14px', textAlign: 'right',
+                fontSize: 12, color: '#6b7280', fontWeight: 700,
+                borderBottom: '1px solid #374151', whiteSpace: 'nowrap',
               }}>{h}</th>
             ))}
           </tr>
         </thead>
+
+        {/* ── Body ── */}
         <tbody>
-          {orders.map((order, i) => {
-            const statusInfo = STATUS_MAP[order.status] ?? { label: order.status, bg: '#374151', color: '#9ca3af' };
+          {orders.map((order) => {
+            const status  = statusMap[order.status] ?? statusMap.COMPLETED;
+            const itemCount = Array.isArray(order.items) ? order.items.length : 0;
+
             return (
               <tr
-                key={order.id ?? i}
+                key={order.id ?? order.orderNumber}
+                onClick={() => onRowClick?.(order)}
                 style={{
-                  borderBottom: `1px solid ${t.border}`,
-                  transition: 'background .15s',
+                  cursor     : 'pointer',
+                  transition : 'background .15s',
+                  background : '#1f2937',
                 }}
-                onMouseEnter={e => e.currentTarget.style.background = t.surface2}
-                onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = '#263447';
+                  // highlight the "عرض" button
+                  const btn = e.currentTarget.querySelector('.view-btn');
+                  if (btn) {
+                    btn.style.background   = '#10b981';
+                    btn.style.color        = '#fff';
+                    btn.style.borderColor  = '#10b981';
+                  }
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = '#1f2937';
+                  const btn = e.currentTarget.querySelector('.view-btn');
+                  if (btn) {
+                    btn.style.background   = 'transparent';
+                    btn.style.color        = '#6b7280';
+                    btn.style.borderColor  = '#374151';
+                  }
+                }}
               >
-                {/* Invoice Number */}
-                <td style={{ padding: '12px 16px', color: '#10b981', fontSize: 13, fontWeight: 700 }}>
-                  {order.orderNumber ?? `#${order.id}`}
+                {/* Order Number */}
+                <td style={{ padding: '14px', borderRadius: '10px 0 0 10px' }}>
+                  <span style={{
+                    fontFamily: 'monospace', fontSize: 13,
+                    color: '#10b981', fontWeight: 700,
+                    background: '#064e3b44', borderRadius: 6,
+                    padding: '3px 8px',
+                  }}>
+                    {order.orderNumber ?? `#${order.id}`}
+                  </span>
                 </td>
 
                 {/* Date */}
-                <td style={{ padding: '12px 16px', color: t.subtext, fontSize: 12 }}>
+                <td style={{ padding: '14px', color: '#9ca3af', fontSize: 13, whiteSpace: 'nowrap' }}>
                   {formatDate(order.createdAt)}
                 </td>
 
-                {/* Payment Method */}
-                <td style={{ padding: '12px 16px', color: t.text, fontSize: 13 }}>
-                  {order.paymentMethod === 'CASH' ? '💵 نقدي' : order.paymentMethod ?? '—'}
+                {/* Items count */}
+                <td style={{ padding: '14px' }}>
+                  <span style={{
+                    background: '#1e3a5f', color: '#60a5fa',
+                    borderRadius: 20, padding: '3px 10px',
+                    fontSize: 12, fontWeight: 700,
+                  }}>
+                    📦 {itemCount} {itemCount === 1 ? 'صنف' : 'أصناف'}
+                  </span>
+                </td>
+
+                {/* Status */}
+                <td style={{ padding: '14px' }}>
+                  <span style={{
+                    background: status.bg, color: status.color,
+                    borderRadius: 20, padding: '4px 12px',
+                    fontSize: 12, fontWeight: 700,
+                    display: 'inline-flex', alignItems: 'center', gap: 5,
+                  }}>
+                    <span style={{
+                      width: 6, height: 6, borderRadius: '50%',
+                      background: status.dot, display: 'inline-block',
+                    }} />
+                    {status.label}
+                  </span>
                 </td>
 
                 {/* Total */}
-                <td style={{ padding: '12px 16px', color: t.text, fontSize: 14, fontWeight: 800 }}>
-                  {formatCurrency(order.total ?? 0)}
+                <td style={{
+                  padding: '14px', color: '#10b981',
+                  fontWeight: 800, fontSize: 15, whiteSpace: 'nowrap',
+                }}>
+                  {formatCurrencyLocal(order.total)}
                 </td>
 
-                {/* Status Badge */}
-                <td style={{ padding: '12px 16px' }}>
-                  <span style={{
-                    background: statusInfo.bg, color: statusInfo.color,
-                    borderRadius: 20, padding: '3px 10px',
-                    fontSize: 11, fontWeight: 700, fontFamily: 'Cairo'
-                  }}>
-                    {statusInfo.label}
-                  </span>
+                {/* Action Button */}
+                <td style={{ padding: '14px', borderRadius: '0 10px 10px 0', textAlign: 'center' }}>
+                  <button
+                    className="view-btn"
+                    onClick={e => { e.stopPropagation(); onRowClick?.(order); }}
+                    title="عرض وطباعة الفاتورة"
+                    style={{
+                      display: 'inline-flex', alignItems: 'center', gap: 5,
+                      padding: '6px 14px', borderRadius: 8,
+                      border: '1.5px solid #374151',
+                      background: 'transparent', color: '#6b7280',
+                      fontFamily: 'Cairo', fontSize: 12, fontWeight: 700,
+                      cursor: 'pointer', transition: 'all .15s', whiteSpace: 'nowrap',
+                    }}
+                  >
+                    <Eye size={13} />
+                    عرض
+                  </button>
                 </td>
               </tr>
             );
           })}
         </tbody>
       </table>
+
+      <style>{`
+        @keyframes pulse {
+          0%, 100% { opacity: 0.6; }
+          50%       { opacity: 1;   }
+        }
+      `}</style>
     </div>
   );
 }
