@@ -19,7 +19,7 @@ const useSalesState = () => {
     ...store,
     subtotal,
     discountAmount,
-//    taxAmount,
+    taxAmount,
     total,
     itemCount,
     handleAddToCart:    store.addToCart,

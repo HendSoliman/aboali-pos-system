@@ -1,0 +1,15 @@
+// src/utils/receiptUtils.js  (create this helper)
+
+/**
+ * Generates a receipt number: INV-20260325-0042
+ * Uses the order ID if available, otherwise a timestamp-based counter
+ */
+export const generateReceiptNumber = (orderId = null) => {
+  const date = new Date();
+  const datePart = date.toISOString().slice(0, 10).replace(/-/g, ''); // 20260325
+  const seq = orderId
+    ? String(orderId).padStart(4, '0')           // 0042  (from DB order ID)
+    : String(Date.now()).slice(-4);              // last 4 digits of timestamp
+
+  return `INV-${datePart}-${seq}`;
+};
