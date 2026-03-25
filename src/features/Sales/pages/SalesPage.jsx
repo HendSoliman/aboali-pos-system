@@ -16,6 +16,10 @@ const formatWeight = (item) => {
   return w < 1 ? `${(w * 1000).toFixed(0)} جرام` : `${w} كجم`;
 };
 
+// ─── Resolve Arabic display name ──────────────────────────────────────────────
+const getDisplayName = (item) =>
+  item.nameAr ?? item.name_ar ?? item.name ?? '—';
+
 // ─── Theme token map ──────────────────────────────────────────────────────────
 const makeTokens = (theme) => ({
   main    : theme === 'dark' ? '#111827' : '#f9fafb',
@@ -38,7 +42,7 @@ function SkeletonCard({ t }) {
       <div style={{ width: 40, height: 40, borderRadius: 10, background: t.border, animation: 'skeleton-pulse 1.5s ease-in-out infinite' }} />
       <div style={{ width: '80%', height: 12, borderRadius: 6, background: t.border, animation: 'skeleton-pulse 1.5s ease-in-out infinite' }} />
       <div style={{ width: '50%', height: 10, borderRadius: 6, background: t.border, animation: 'skeleton-pulse 1.5s ease-in-out infinite 0.2s' }} />
-      <style>{`@keyframes skeleton-pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }`}</style>
+      <style>{`@keyframes skeleton-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.4; } }`}</style>
     </div>
   );
 }
@@ -63,7 +67,7 @@ function ErrorBanner({ message, onRetry, t }) {
   );
 }
 
-// ─── Toast ────────────────────────────────────────────────────────────────────
+// ─── Toast Notification ───────────────────────────────────────────────────────
 function Toast({ message, type = 'success', visible }) {
   return (
     <div style={{
@@ -82,45 +86,10 @@ function Toast({ message, type = 'success', visible }) {
   );
 }
 
-// ─── Payment Toggle ───────────────────────────────────────────────────────────
-function PaymentToggle({ value, onChange, t }) {
-  return (
-    <div style={{ display: 'flex', gap: 8 }}>
-      {[{ id: 'CASH', label: '💵 نقدي' }, { id: 'CARD', label: '💳 بطاقة' }].map(opt => (
-        <button
-          key={opt.id}
-          onClick={() => onChange(opt.id)}
-          style={{
-            flex: 1, padding: '10px 0', border: '1.5px solid',
-            borderColor  : value === opt.id ? '#10b981' : t.border,
-            background   : value === opt.id ? '#064e3b' : t.surface2,
-            borderRadius : 10, color: value === opt.id ? '#10b981' : t.subtext,
-            fontFamily: 'Cairo', fontWeight: 800, fontSize: 13,
-            cursor: 'pointer', transition: 'all .15s',
-          }}
-        >{opt.label}</button>
-      ))}
-    </div>
-  );
-}
-
 // ─── Loose Product Modal ──────────────────────────────────────────────────────
-function LooseProductModal({ isOpen, product, editMode, onClose, onAddToCart, t }) {
+function LooseProductModal({ isOpen, product, onClose, onAddToCart, t }) {
   const [weightValue, setWeightValue] = useState('');
   const [weightUnit,  setWeightUnit]  = useState('كجم');
-
-  // Pre-fill when editing an existing loose item
-  useEffect(() => {
-    if (isOpen && product) {
-      if (editMode && product.weightValue) {
-        setWeightValue(String(product.weightValue));
-        setWeightUnit(product.weightUnit ?? 'كجم');
-      } else {
-        setWeightValue('');
-        setWeightUnit('كجم');
-      }
-    }
-  }, [isOpen, product, editMode]);
 
   const weightInKg = useMemo(() => {
     const val = parseFloat(weightValue);
@@ -134,20 +103,23 @@ function LooseProductModal({ isOpen, product, editMode, onClose, onAddToCart, t 
 
   const isValid = weightInKg > 0;
 
+  // ✅ FIX: store Arabic display name in the cart item
   const handleConfirm = useCallback(() => {
     if (!isValid || !product) return;
     onAddToCart({
       ...product,
-      // Unique cart id: preserve original if editing, else new timestamp id
-      id         : editMode ? product.cartId : `${product.id}_${Date.now()}`,
-      quantity   : weightInKg,
-      weightValue: parseFloat(weightValue),
+      id          : `${product.id}_${Date.now()}`,
+      name        : getDisplayName(product),   // ← Arabic name stored here
+      quantity    : weightInKg,
+      weightValue : parseFloat(weightValue),
       weightUnit,
-      price      : product.price,
+      price       : product.price,
       totalPrice,
-      isLoose    : true,
+      isLoose     : true,
     });
-  }, [isValid, product, editMode, weightInKg, weightValue, weightUnit, totalPrice, onAddToCart]);
+    setWeightValue('');
+    setWeightUnit('كجم');
+  }, [isValid, product, weightInKg, weightValue, weightUnit, totalPrice, onAddToCart]);
 
   const handleClose = useCallback(() => {
     setWeightValue('');
@@ -162,6 +134,8 @@ function LooseProductModal({ isOpen, product, editMode, onClose, onAddToCart, t 
 
   if (!isOpen || !product) return null;
 
+  const displayName = getDisplayName(product);
+
   return (
     <div onClick={handleClose} style={{
       position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.75)',
@@ -174,9 +148,10 @@ function LooseProductModal({ isOpen, product, editMode, onClose, onAddToCart, t 
       }}>
         {/* Header */}
         <div style={{ textAlign: 'center', marginBottom: 24 }}>
-          <div style={{ fontSize: 48, marginBottom: 8 }}>{product.emoji ?? '⚖️'}</div>
+          <div style={{ fontSize: 48, marginBottom: 8 }}>{product.emoji}</div>
+          {/* ✅ Arabic name in modal header */}
           <h2 style={{ fontFamily: 'Cairo', color: t.text, fontSize: 20, fontWeight: 800, margin: 0 }}>
-            {editMode ? 'تعديل الوزن' : product.name}
+            {displayName}
           </h2>
           <div style={{
             display: 'inline-flex', alignItems: 'center', gap: 6,
@@ -185,7 +160,7 @@ function LooseProductModal({ isOpen, product, editMode, onClose, onAddToCart, t 
           }}>
             <span style={{ fontSize: 14 }}>⚖️</span>
             <span style={{ fontFamily: 'Cairo', fontSize: 13, color: '#f59e0b', fontWeight: 700 }}>
-              {editMode ? `${product.name} — تعديل الكمية` : `منتج بالوزن — ${formatCurrency(product.price)} / كجم`}
+              منتج بالوزن — {formatCurrency(product.price)} / كجم
             </span>
           </div>
         </div>
@@ -199,9 +174,9 @@ function LooseProductModal({ isOpen, product, editMode, onClose, onAddToCart, t 
             {['كجم', 'جرام'].map(unit => (
               <button key={unit} onClick={() => setWeightUnit(unit)} style={{
                 flex: 1, padding: '10px 0', borderRadius: 12, border: '2px solid',
-                borderColor: weightUnit === unit ? '#10b981' : t.border,
-                background : weightUnit === unit ? '#064e3b'  : t.input,
-                color      : weightUnit === unit ? '#10b981'  : t.subtext,
+                borderColor : weightUnit === unit ? '#10b981' : t.border,
+                background  : weightUnit === unit ? '#064e3b'  : t.input,
+                color       : weightUnit === unit ? '#10b981'  : t.subtext,
                 fontFamily: 'Cairo', fontSize: 15, fontWeight: 700,
                 cursor: 'pointer', transition: 'all .15s',
               }}>
@@ -218,9 +193,7 @@ function LooseProductModal({ isOpen, product, editMode, onClose, onAddToCart, t 
           </label>
           <div style={{ position: 'relative' }}>
             <input
-              autoFocus
-              type="number"
-              min="0"
+              autoFocus type="number" min="0"
               step={weightUnit === 'جرام' ? '1' : '0.1'}
               value={weightValue}
               onChange={e => setWeightValue(e.target.value)}
@@ -250,9 +223,9 @@ function LooseProductModal({ isOpen, product, editMode, onClose, onAddToCart, t 
             <span style={{ fontFamily: 'Cairo', color: t.subtext, fontSize: 13 }}>الكمية</span>
             <span style={{ fontFamily: 'Cairo', color: t.text, fontSize: 13, fontWeight: 600 }}>
               {weightValue
-                ? (weightUnit === 'جرام'
+                ? weightUnit === 'جرام'
                   ? `${weightValue} جرام (${(parseFloat(weightValue) / 1000).toFixed(3)} كجم)`
-                  : `${weightValue} كجم`)
+                  : `${weightValue} كجم`
                 : '—'}
             </span>
           </div>
@@ -283,9 +256,7 @@ function LooseProductModal({ isOpen, product, editMode, onClose, onAddToCart, t 
             fontSize: 15, fontWeight: 800,
             color: isValid ? '#fff' : t.subtext,
             cursor: isValid ? 'pointer' : 'not-allowed', transition: 'all .2s',
-          }}>
-            {editMode ? '✓ تحديث الوزن' : '✓ إضافة للسلة'}
-          </button>
+          }}>✓ إضافة للسلة</button>
         </div>
       </div>
     </div>
@@ -295,6 +266,7 @@ function LooseProductModal({ isOpen, product, editMode, onClose, onAddToCart, t 
 // ─── Product Card ─────────────────────────────────────────────────────────────
 function ProductCard({ product, onClick, t }) {
   const isOutOfStock = product.stock === 0;
+  const displayName  = getDisplayName(product);   // ✅ Arabic in product grid
 
   return (
     <button
@@ -307,21 +279,18 @@ function ProductCard({ product, onClick, t }) {
         cursor: isOutOfStock ? 'not-allowed' : 'pointer',
         textAlign: 'right', transition: 'transform .15s, box-shadow .15s, border-color .15s',
         position: 'relative', display: 'flex', flexDirection: 'column',
-        alignItems: 'flex-start', gap: 6,
-        opacity: isOutOfStock ? 0.55 : 1,
+        alignItems: 'flex-start', gap: 6, opacity: isOutOfStock ? 0.55 : 1,
       }}
       onMouseEnter={e => {
         if (isOutOfStock) return;
         e.currentTarget.style.transform    = 'translateY(-3px)';
-        e.currentTarget.style.boxShadow    = product.isLoose
-          ? '0 8px 24px rgba(245,158,11,0.15)'
-          : '0 8px 24px rgba(16,185,129,0.12)';
+        e.currentTarget.style.boxShadow    = product.isLoose ? '0 8px 24px rgba(245,158,11,0.15)' : '0 8px 24px rgba(16,185,129,0.12)';
         e.currentTarget.style.borderColor  = product.isLoose ? '#f59e0b' : '#10b981';
       }}
       onMouseLeave={e => {
-        e.currentTarget.style.transform   = 'none';
-        e.currentTarget.style.boxShadow   = 'none';
-        e.currentTarget.style.borderColor = product.isLoose ? '#78350f' : '#1e3a5f';
+        e.currentTarget.style.transform    = 'none';
+        e.currentTarget.style.boxShadow    = 'none';
+        e.currentTarget.style.borderColor  = product.isLoose ? '#78350f' : '#1e3a5f';
       }}
     >
       <span style={{
@@ -329,7 +298,7 @@ function ProductCard({ product, onClick, t }) {
         background: product.isLoose ? '#f59e0b' : '#3b82f6',
         color: product.isLoose ? '#000' : '#fff',
         fontSize: 9, fontWeight: 800, fontFamily: 'Cairo',
-        padding: '2px 8px', borderRadius: 20,
+        padding: '2px 8px', borderRadius: 20, letterSpacing: 0.5,
       }}>
         {product.isLoose ? 'بالوزن' : 'معبأ'}
       </span>
@@ -344,9 +313,12 @@ function ProductCard({ product, onClick, t }) {
       )}
 
       <div style={{ fontSize: 34, marginTop: 4 }}>{product.emoji ?? '📦'}</div>
+
+      {/* ✅ Arabic name in product card */}
       <div style={{ fontFamily: 'Cairo', fontSize: 13, fontWeight: 700, color: t.text, lineHeight: 1.4 }}>
-        {product.nameAr ?? product.name}
+        {displayName}
       </div>
+
       <div style={{ fontFamily: 'Cairo', fontSize: 12, color: product.isLoose ? '#f59e0b' : '#10b981', fontWeight: 700 }}>
         {formatCurrency(product.price)}
         <span style={{ color: t.subtext, fontWeight: 400, fontSize: 11 }}>
@@ -358,11 +330,14 @@ function ProductCard({ product, onClick, t }) {
 }
 
 // ─── Cart Item ────────────────────────────────────────────────────────────────
-function CartItem({ item, onUpdate, onRemove, onEditLoose, t }) {
+function CartItem({ item, onUpdate, onRemove, t }) {
   const weightLabel = formatWeight(item);
   const lineTotal   = item.isLoose
     ? (item.totalPrice ?? item.price * item.quantity)
     : item.price * item.quantity;
+
+  // ✅ Always show Arabic name in cart
+  const displayName = item.nameAr ?? item.name_ar ?? item.name ?? '—';
 
   const btnStyle = {
     width: 28, height: 28, background: t.border, border: 'none',
@@ -377,29 +352,22 @@ function CartItem({ item, onUpdate, onRemove, onEditLoose, t }) {
     }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
         <div style={{ flex: 1, minWidth: 0 }}>
-          <div style={{ fontFamily: 'Cairo', fontSize: 13, fontWeight: 700, color: t.text, marginBottom: 4 }}>
+          <div style={{
+            fontFamily: 'Cairo', fontSize: 13, fontWeight: 700,
+            color: t.text, marginBottom: 2,
+            overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap',
+          }}>
             <span style={{ marginLeft: 4 }}>{item.emoji}</span>
-            {item.name}
+            {/* ✅ Arabic name in cart row */}
+            {displayName}
           </div>
           <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
             {item.isLoose ? (
-              <>
-                <span style={{
-                  background: '#f59e0b22', border: '1px solid #f59e0b55',
-                  borderRadius: 20, padding: '1px 8px',
-                  fontFamily: 'Cairo', fontSize: 11, color: '#f59e0b', fontWeight: 700,
-                }}>⚖️ {weightLabel}</span>
-                {/* Edit weight button */}
-                <button
-                  onClick={() => onEditLoose(item)}
-                  style={{
-                    background: '#1e3a5f', border: '1px solid #3b82f655',
-                    borderRadius: 20, padding: '1px 8px',
-                    fontFamily: 'Cairo', fontSize: 11, color: '#60a5fa',
-                    fontWeight: 700, cursor: 'pointer',
-                  }}
-                >✏️ تعديل</button>
-              </>
+              <span style={{
+                background: '#f59e0b22', border: '1px solid #f59e0b55',
+                borderRadius: 20, padding: '1px 8px',
+                fontFamily: 'Cairo', fontSize: 11, color: '#f59e0b', fontWeight: 700,
+              }}>⚖️ {weightLabel}</span>
             ) : (
               <span style={{
                 background: '#3b82f622', border: '1px solid #3b82f655',
@@ -413,7 +381,7 @@ function CartItem({ item, onUpdate, onRemove, onEditLoose, t }) {
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 6, marginRight: 8, flexShrink: 0 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexShrink: 0, marginRight: 8 }}>
           {!item.isLoose && (
             <>
               <button onClick={() => onUpdate(item.id, item.quantity - 1)} style={btnStyle}>−</button>
@@ -438,32 +406,20 @@ export default function SalesPage() {
   const { theme } = useTheme();
   const t = useMemo(() => makeTokens(theme), [theme]);
 
-  // ── Products ──────────────────────────────────────────────────────────────
-  const [products,        setProducts]        = useState([]);
-  const [productsLoading, setProductsLoading] = useState(true);
-  const [productsError,   setProductsError]   = useState(null);
-
-  // ── Cart ──────────────────────────────────────────────────────────────────
-  const [cart,            setCart]            = useState([]);
-  const [searchQuery,     setSearchQuery]     = useState('');
-  const [activeCategory,  setActiveCategory]  = useState('الكل');
-  const [paymentMethod,   setPaymentMethod]   = useState('CASH');
-
-  // ── Loose modal state ─────────────────────────────────────────────────────
-  // product: the product (or pseudo-product for edits), editMode: bool
-  const [looseModal, setLooseModal] = useState({ open: false, product: null, editMode: false });
-
-  // ── Receipt ───────────────────────────────────────────────────────────────
-  const [showReceipt,  setShowReceipt]  = useState(false);
-  const [receiptData,  setReceiptData]  = useState(null);
-
-  // ── Checkout ──────────────────────────────────────────────────────────────
-  const [isSubmitting,  setIsSubmitting]  = useState(false);
-  const [checkoutError, setCheckoutError] = useState(null);
-
-  // ── Toast ─────────────────────────────────────────────────────────────────
-  const [toast,        setToast]        = useState({ visible: false, message: '', type: 'success' });
-  const toastTimerRef = useRef(null);
+  const [products,         setProducts]         = useState([]);
+  const [productsLoading,  setProductsLoading]  = useState(true);
+  const [productsError,    setProductsError]    = useState(null);
+  const [cart,             setCart]             = useState([]);
+  const [searchQuery,      setSearchQuery]      = useState('');
+  const [activeCategory,   setActiveCategory]   = useState('الكل');
+  const [looseProduct,     setLooseProduct]     = useState(null);
+  const [showReceipt,      setShowReceipt]      = useState(false);
+  const [receiptData,      setReceiptData]      = useState(null);
+  const [isSubmitting,     setIsSubmitting]     = useState(false);
+  const [checkoutError,    setCheckoutError]    = useState(null);
+  const [toast,            setToast]            = useState({ visible: false, message: '', type: 'success' });
+  const toastTimerRef    = useRef(null);
+  const searchDebounceRef = useRef(null);
 
   const showToast = useCallback((message, type = 'success') => {
     if (toastTimerRef.current) clearTimeout(toastTimerRef.current);
@@ -478,18 +434,8 @@ export default function SalesPage() {
     setProductsError(null);
     try {
       const res  = await productsApi.getAll(search);
-      const list = Array.isArray(res?.data) ? res.data
-                 : Array.isArray(res)        ? res
-                 : [];
-      // Normalize field names from backend
-      setProducts(list.map(p => ({
-        ...p,
-        nameAr  : p.nameAr   ?? p.name_ar  ?? p.name,
-        isLoose : p.isLoose  ?? p.is_loose ?? false,
-        unit    : p.unit     ?? 'piece',
-        emoji   : p.emoji    ?? '📦',
-        stock   : p.stock    ?? 0,
-      })));
+      const list = Array.isArray(res?.data) ? res.data : Array.isArray(res) ? res : [];
+      setProducts(list);
     } catch (err) {
       setProductsError(err.message ?? 'فشل تحميل المنتجات');
     } finally {
@@ -499,136 +445,47 @@ export default function SalesPage() {
 
   useEffect(() => { loadProducts(); }, [loadProducts]);
 
-  // ── Debounced search ──────────────────────────────────────────────────────
-  const searchDebounceRef = useRef(null);
   const handleSearchChange = useCallback((e) => {
     const value = e.target.value;
     setSearchQuery(value);
-    clearTimeout(searchDebounceRef.current);
+    if (searchDebounceRef.current) clearTimeout(searchDebounceRef.current);
     searchDebounceRef.current = setTimeout(() => loadProducts(value), 400);
   }, [loadProducts]);
 
-  // ── Barcode scanner (keyboard wedge) ─────────────────────────────────────
-  const barcodeBuffer = useRef('');
-  const barcodeTimer  = useRef(null);
-  // Keep products in a ref so the keydown closure is always fresh
-  const productsRef   = useRef(products);
-  useEffect(() => { productsRef.current = products; }, [products]);
+  // ── Cart helpers ──────────────────────────────────────────────────────────
+  const addToCart = useCallback((product) => {
+    if (product.isLoose) { setLooseProduct(product); return; }
 
-  useEffect(() => {
-    const onKey = (e) => {
-      if (e.target.tagName === 'INPUT') return;
-      if (e.key === 'Enter') {
-        const code = barcodeBuffer.current.trim();
-        barcodeBuffer.current = '';
-        clearTimeout(barcodeTimer.current);
-        if (code.length > 2) {
-          const found = productsRef.current.find(p => p.barcode === code);
-          if (found) addToCartDirect(found);
-          else showToast(`الباركود ${code} غير موجود`, 'error');
-        }
-      } else if (e.key.length === 1) {
-        barcodeBuffer.current += e.key;
-        clearTimeout(barcodeTimer.current);
-        barcodeTimer.current = setTimeout(() => { barcodeBuffer.current = ''; }, 300);
-      }
-    };
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [showToast]); // showToast is stable; products read via ref
+    // ✅ FIX: store Arabic name when adding fixed product to cart
+    const arabicName = getDisplayName(product);
 
-  // ── Add to cart (used by both click and barcode) ──────────────────────────
-  const addToCartDirect = useCallback((product) => {
-    if (product.isLoose) {
-      setLooseModal({ open: true, product, editMode: false });
-      return;
-    }
     setCart(prev => {
       const ex = prev.find(i => i.id === product.id && !i.isLoose);
-      if (ex) {
-        if (ex.quantity >= (product.stock ?? Infinity)) {
-          showToast('لا يوجد مخزون كافٍ', 'error');
-          return prev;
-        }
-        return prev.map(i =>
-          i.id === product.id && !i.isLoose ? { ...i, quantity: i.quantity + 1 } : i
-        );
-      }
-      if (product.stock < 1) {
-        showToast('هذا المنتج نفد من المخزون', 'error');
-        return prev;
-      }
+      if (ex) return prev.map(i =>
+        i.id === product.id && !i.isLoose ? { ...i, quantity: i.quantity + 1 } : i
+      );
       return [...prev, {
-        id      : product.id,
-        name    : product.nameAr ?? product.name,
-        emoji   : product.emoji,
-        price   : product.price,
+        ...product,
+        name    : arabicName,   // ← overwrite with Arabic
+        nameAr  : arabicName,   // ← keep for safety
         quantity: 1,
-        stock   : product.stock,
-        isLoose : false,
-        unit    : 'piece',
       }];
-    });
-  }, [showToast]);
-
-  // ── Loose modal: confirm (add or update) ──────────────────────────────────
-  const handleLooseConfirm = useCallback((item) => {
-    setCart(prev => {
-      // Edit mode — update the matching cart row by its unique id
-      if (looseModal.editMode && item.id) {
-        return prev.map(i =>
-          i.id === item.id
-            ? { ...i, quantity: item.quantity, weightValue: item.weightValue, weightUnit: item.weightUnit, totalPrice: item.totalPrice }
-            : i
-        );
-      }
-      // New loose item
-      return [...prev, {
-        id         : item.id,    // `${product.id}_${Date.now()}`
-        name       : item.name ?? item.nameAr,
-        emoji      : item.emoji,
-        price      : item.price,
-        quantity   : item.quantity,
-        weightValue: item.weightValue,
-        weightUnit : item.weightUnit,
-        totalPrice : item.totalPrice,
-        isLoose    : true,
-        unit       : item.weightUnit ?? 'كجم',
-      }];
-    });
-    setLooseModal({ open: false, product: null, editMode: false });
-    showToast(looseModal.editMode ? '✓ تم تحديث الوزن' : `✓ تمت إضافة ${item.name ?? item.nameAr}`);
-  }, [looseModal.editMode, showToast]);
-
-  // ── Edit loose item ───────────────────────────────────────────────────────
-  const handleEditLoose = useCallback((item) => {
-    // Build a pseudo-product that includes the cart's unique id for the modal
-    setLooseModal({
-      open    : true,
-      editMode: true,
-      product : {
-        cartId      : item.id,   // the unique cart row id
-        id          : item.id,
-        name        : item.name,
-        emoji       : item.emoji,
-        price       : item.price,
-        weightValue : item.weightValue,
-        weightUnit  : item.weightUnit,
-        isLoose     : true,
-      },
     });
   }, []);
 
-  // ── Cart helpers ──────────────────────────────────────────────────────────
+  // ✅ FIX: loose item already has Arabic name set in handleConfirm above
+  const handleLooseAdd = useCallback((item) => {
+    setCart(prev => [...prev, item]);
+    setLooseProduct(null);
+  }, []);
+
   const removeFromCart = useCallback((id) =>
     setCart(prev => prev.filter(i => i.id !== id)), []);
 
-  const updateQty = useCallback((id, qty) => {
-    if (qty < 1) { removeFromCart(id); return; }
+  const updateQty = useCallback((id, qty) =>
     setCart(prev => prev.map(i =>
       i.id === id ? { ...i, quantity: Math.max(1, qty) } : i
-    ));
-  }, [removeFromCart]);
+    )), []);
 
   const clearCart = useCallback(() => setCart([]), []);
 
@@ -638,7 +495,8 @@ export default function SalesPage() {
       sum + (i.isLoose ? (i.totalPrice ?? i.price * i.quantity) : i.price * i.quantity), 0),
   [cart]);
 
-  const cartTotal = cartSubtotal; // extend with discount/tax here if needed
+  const discountAmount = 0;
+  const cartTotal      = cartSubtotal - discountAmount;
 
   // ── Checkout ──────────────────────────────────────────────────────────────
   const handleCheckout = useCallback(async () => {
@@ -647,23 +505,23 @@ export default function SalesPage() {
     const orderPayload = {
       orderNumber  : `INV-${Date.now().toString(36).toUpperCase()}`.slice(-10),
       status       : 'COMPLETED',
-      paymentMethod,
+      paymentMethod: 'CASH',
       notes        : '',
       items: cart.map(item => {
         const itemSubtotal = item.isLoose
           ? (item.totalPrice ?? item.price * item.quantity)
           : item.price * item.quantity;
         return {
-          productId: Number(String(item.id).split('_')[0]),
-          name     : item.name,
+          productId: Number(item.id),
+          // ✅ Send Arabic name to backend too
+          name     : getDisplayName(item),
           price    : parseFloat(item.price),
           quantity : parseFloat(item.quantity),
           subtotal : parseFloat(itemSubtotal.toFixed(2)),
-          unit     : item.unit ?? 'piece',
         };
       }),
       subtotal: parseFloat(cartSubtotal.toFixed(2)),
-      discount: 0,
+      discount: parseFloat(discountAmount.toFixed(2)),
       tax     : 0,
       total   : parseFloat(cartTotal.toFixed(2)),
     };
@@ -676,29 +534,30 @@ export default function SalesPage() {
       const savedOrder = res?.data ?? res;
 
       const receipt = {
-        invoiceNumber: savedOrder.orderNumber ?? orderPayload.orderNumber,
-        date         : savedOrder.createdAt ? new Date(savedOrder.createdAt) : new Date(),
-        cashierName  : 'الحاج أبوعلي',
-        storeName    : 'علافة وعطارة الحاج أبو علي',
-        paymentMethod: paymentMethod === 'CASH' ? 'نقدي' : 'بطاقة',
-        amountPaid   : cartTotal,
-        change       : 0,
-        items: cart.map((item, idx) => ({
-          id         : item.id          ?? idx,
-          name       : item.name        ?? `صنف ${idx + 1}`,
-          emoji      : item.emoji       ?? '📦',
-          price      : parseFloat(item.price   ?? 0),
-          quantity   : parseFloat(item.quantity ?? 1),
-          isLoose    : item.isLoose     ?? false,
-          weightValue: item.weightValue ?? null,
-          weightUnit : item.weightUnit  ?? null,
-          totalPrice : item.isLoose
+        invoiceNumber : savedOrder.orderNumber ?? orderPayload.orderNumber,
+        date          : savedOrder.createdAt ? new Date(savedOrder.createdAt) : new Date(),
+        cashierName   : 'الحاج أبوعلي',
+        storeName     : 'علافة وعطارة الحاج أبو علي',
+        paymentMethod : 'نقدي',
+        amountPaid    : cartTotal,
+        change        : 0,
+        // ✅ FIX: Arabic name in every receipt line item
+        items: cart.filter(Boolean).map((item, idx) => ({
+          id          : item.id          ?? idx,
+          name        : getDisplayName(item),   // ← Arabic name on receipt
+          emoji       : item.emoji       ?? '📦',
+          price       : parseFloat(item.price   ?? 0),
+          quantity    : parseFloat(item.quantity ?? 1),
+          isLoose     : item.isLoose     ?? false,
+          weightValue : item.weightValue ?? null,
+          weightUnit  : item.weightUnit  ?? null,
+          totalPrice  : item.isLoose
             ? (item.totalPrice ?? item.price * item.quantity)
             : item.price * item.quantity,
-          weightLabel: item.isLoose ? formatWeight(item) : null,
+          weightLabel : item.isLoose ? formatWeight(item) : null,
         })),
         subtotal: cartSubtotal,
-        discount: 0,
+        discount: discountAmount,
         total   : cartTotal,
       };
 
@@ -714,9 +573,9 @@ export default function SalesPage() {
     } finally {
       setIsSubmitting(false);
     }
-  }, [cart, cartSubtotal, cartTotal, paymentMethod, isSubmitting, showToast]);
+  }, [cart, cartSubtotal, discountAmount, cartTotal, isSubmitting, showToast]);
 
-  // ── Derived data ──────────────────────────────────────────────────────────
+  // ── Derived ───────────────────────────────────────────────────────────────
   const categories = useMemo(() => {
     const cats = [...new Set(products.map(p => p.category).filter(Boolean))];
     return ['الكل', ...cats];
@@ -726,18 +585,16 @@ export default function SalesPage() {
     products.filter(p => activeCategory === 'الكل' || p.category === activeCategory),
   [products, activeCategory]);
 
-  // ── Render ────────────────────────────────────────────────────────────────
+  // ─── Render ───────────────────────────────────────────────────────────────
   return (
     <div dir="rtl" style={{ display: 'flex', height: '100vh', background: t.main, overflow: 'hidden' }}>
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
 
-      {/* ── Cart Panel ────────────────────────────────────────────────────── */}
+      {/* ── Cart Panel ── */}
       <aside style={{
         width: 360, background: t.surface,
         borderLeft: `1px solid ${t.border}`,
         display: 'flex', flexDirection: 'column', flexShrink: 0,
       }}>
-        {/* Header */}
         <div style={{
           padding: '16px 20px', fontFamily: 'Cairo', fontSize: 18,
           fontWeight: 800, color: t.text, borderBottom: `1px solid ${t.border}`,
@@ -760,7 +617,6 @@ export default function SalesPage() {
           )}
         </div>
 
-        {/* Items */}
         <div style={{ flex: 1, overflowY: 'auto', padding: 12 }}>
           {cart.length === 0 ? (
             <div style={{ textAlign: 'center', color: t.subtext, fontFamily: 'Cairo', marginTop: 60 }}>
@@ -770,42 +626,39 @@ export default function SalesPage() {
             </div>
           ) : (
             cart.map(item => (
-              <CartItem
-                key={item.id}
-                item={item}
-                onUpdate={updateQty}
-                onRemove={removeFromCart}
-                onEditLoose={handleEditLoose}
-                t={t}
-              />
+              <CartItem key={item.id} item={item} onUpdate={updateQty} onRemove={removeFromCart} t={t} />
             ))
           )}
         </div>
 
-        {/* Footer */}
-        <div style={{ padding: 16, borderTop: `1px solid ${t.border}`, display: 'flex', flexDirection: 'column', gap: 10 }}>
+        <div style={{ padding: 16, borderTop: `1px solid ${t.border}` }}>
           {checkoutError && (
             <div style={{
               background: '#7f1d1d33', border: '1px solid #ef444466',
-              borderRadius: 10, padding: '8px 12px',
+              borderRadius: 10, padding: '8px 12px', marginBottom: 12,
               fontFamily: 'Cairo', fontSize: 12, color: '#ef4444',
             }}>⚠️ {checkoutError}</div>
           )}
 
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'Cairo', color: t.subtext, fontSize: 13 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'Cairo', color: t.subtext, marginBottom: 8, fontSize: 13 }}>
             <span>المجموع الفرعي</span>
             <span>{formatCurrency(cartSubtotal)}</span>
           </div>
-          <div style={{ height: 1, background: t.border }} />
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'Cairo', color: t.text, fontSize: 17, fontWeight: 800 }}>
+
+          {discountAmount > 0 && (
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'Cairo', color: '#f59e0b', marginBottom: 8, fontSize: 13 }}>
+              <span>الخصم</span>
+              <span>− {formatCurrency(discountAmount)}</span>
+            </div>
+          )}
+
+          <div style={{ height: 1, background: t.border, margin: '10px 0' }} />
+
+          <div style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'Cairo', color: t.text, fontSize: 17, fontWeight: 800, marginBottom: 16 }}>
             <span>الإجمالي</span>
             <span style={{ color: '#10b981' }}>{formatCurrency(cartTotal)}</span>
           </div>
 
-          {/* Payment method */}
-          <PaymentToggle value={paymentMethod} onChange={setPaymentMethod} t={t} />
-
-          {/* Checkout button */}
           <button
             onClick={handleCheckout}
             disabled={cart.length === 0 || isSubmitting}
@@ -830,26 +683,25 @@ export default function SalesPage() {
               </>
             ) : 'إتمام الشراء ←'}
           </button>
+          <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
         </div>
       </aside>
 
-      {/* ── Products Panel ────────────────────────────────────────────────── */}
+      {/* ── Products Panel ── */}
       <main style={{ flex: 1, overflowY: 'auto', padding: 20 }}>
-
-        {/* Legend */}
         <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
           {[
             { color: '#f59e0b', bg: '#f59e0b22', border: '#f59e0b55', label: '⚖️ منتجات بالوزن' },
             { color: '#3b82f6', bg: '#3b82f622', border: '#3b82f655', label: '📦 منتجات معبأة'  },
           ].map(({ color, bg, border, label }) => (
             <div key={label} style={{
-              background: bg, border: `1px solid ${border}`, borderRadius: 20,
-              padding: '5px 14px', fontFamily: 'Cairo', fontSize: 12, color, fontWeight: 700,
+              background: bg, border: `1px solid ${border}`,
+              borderRadius: 20, padding: '5px 14px',
+              fontFamily: 'Cairo', fontSize: 12, color, fontWeight: 700,
             }}>{label}</div>
           ))}
         </div>
 
-        {/* Search */}
         <input
           placeholder="🔍 ابحث عن منتج..."
           value={searchQuery}
@@ -866,15 +718,14 @@ export default function SalesPage() {
           <ErrorBanner message={productsError} onRetry={() => loadProducts(searchQuery)} t={t} />
         )}
 
-        {/* Categories */}
         {!productsLoading && categories.length > 1 && (
           <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', marginBottom: 20 }}>
             {categories.map(cat => (
               <button key={cat} onClick={() => setActiveCategory(cat)} style={{
                 padding: '6px 16px', borderRadius: 20, border: '1.5px solid',
-                borderColor: activeCategory === cat ? '#10b981' : t.border,
-                background : activeCategory === cat ? '#064e3b'  : t.surface,
-                color      : activeCategory === cat ? '#10b981'  : t.subtext,
+                borderColor : activeCategory === cat ? '#10b981' : t.border,
+                background  : activeCategory === cat ? '#064e3b'  : t.surface,
+                color       : activeCategory === cat ? '#10b981'  : t.subtext,
                 fontFamily: 'Cairo', fontSize: 13, fontWeight: 600,
                 cursor: 'pointer', transition: 'all .15s',
               }}>{cat}</button>
@@ -882,12 +733,7 @@ export default function SalesPage() {
           </div>
         )}
 
-        {/* Grid */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))',
-          gap: 12,
-        }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(155px, 1fr))', gap: 12 }}>
           {productsLoading
             ? Array.from({ length: 12 }).map((_, i) => <SkeletonCard key={i} t={t} />)
             : filteredProducts.length === 0
@@ -901,7 +747,7 @@ export default function SalesPage() {
                 <ProductCard
                   key={product.id}
                   product={product}
-                  onClick={() => addToCartDirect(product)}
+                  onClick={() => addToCart(product)}
                   t={t}
                 />
               ))
@@ -909,17 +755,16 @@ export default function SalesPage() {
         </div>
       </main>
 
-      {/* ── Loose Weight Modal ────────────────────────────────────────────── */}
+      {/* ── Loose Modal ── */}
       <LooseProductModal
-        isOpen={looseModal.open}
-        product={looseModal.product}
-        editMode={looseModal.editMode}
-        onClose={() => setLooseModal({ open: false, product: null, editMode: false })}
-        onAddToCart={handleLooseConfirm}
+        isOpen={!!looseProduct}
+        product={looseProduct}
+        onClose={() => setLooseProduct(null)}
+        onAddToCart={handleLooseAdd}
         t={t}
       />
 
-      {/* ── Receipt Modal ─────────────────────────────────────────────────── */}
+      {/* ── Receipt ── */}
       {showReceipt && receiptData && (
         <Receipt
           isOpen={showReceipt}
@@ -928,7 +773,7 @@ export default function SalesPage() {
         />
       )}
 
-      {/* ── Toast ─────────────────────────────────────────────────────────── */}
+      {/* ── Toast ── */}
       <Toast visible={toast.visible} message={toast.message} type={toast.type} />
     </div>
   );
