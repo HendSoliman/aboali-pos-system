@@ -11,7 +11,7 @@ const LooseCartItem = ({ item, onEditLoose, onRemove }) => (
 
     {/* Details */}
     <div className={styles.details}>
-      <p className={styles.name}>{item.name}</p>
+      <p className={styles.name}>{item.nameAr}</p>
       <p className={styles.unitPrice}>
         <span className={styles.looseBadge}>بالوزن</span>
         {item.quantity} {item.unitLabel ?? 'كجم'}
@@ -50,7 +50,7 @@ const FixedCartItem = ({ item, onUpdateQty, onRemove }) => (
     <div className={styles.emoji}>{item.emoji || '📦'}</div>
 
     <div className={styles.details}>
-      <p className={styles.name}>{item.name}</p>
+      <p className={styles.name}>{item.nameAr}</p>
       <p className={styles.unitPrice}>
         {formatCurrency(item.price)} × {item.quantity}
       </p>
