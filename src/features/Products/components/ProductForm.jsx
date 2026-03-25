@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState ,useRef } from 'react';
 import styles from './ProductForm.module.css';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -21,6 +21,11 @@ const makeDefault = (initial) => ({
   active  : initial?.active   ?? true,
 });
 
+
+const toEnglishDigits = (str) => {
+  return str.toString().replace(/[٠-٩]/g, (d) => "٠١٢٣٤٥٦٧٨٩".indexOf(d));
+};
+
 export default function ProductForm({ initial, onSubmit, onCancel, isSubmitting }) {
   // Now makeDefault is defined and can be called here
   const [form, setForm] = useState(() => makeDefault(initial));
@@ -28,6 +33,15 @@ export default function ProductForm({ initial, onSubmit, onCancel, isSubmitting 
 
   const set    = (key, val) => setForm(prev => ({ ...prev, [key]: val }));
   const toggle = (key)      => setForm(prev => ({ ...prev, [key]: !prev[key] }));
+  const priceInputRef = useRef(null); // 2. Create the ref
+// Convert Arabic numerals to English numerals on the fly
+  const handleNumericInput = (key, val) => {
+    const sanitized = toEnglishDigits(val);
+    // Allow only numbers and a single decimal point
+    if (sanitized === '' || /^[0-9]*\.?[0-9]*$/.test(sanitized)) {
+      setForm(prev => ({ ...prev, [key]: sanitized }));
+    }
+  };
 
   return (
     <form className={styles.form} onSubmit={(e) => { e.preventDefault(); onSubmit(form); }}>
@@ -83,9 +97,13 @@ export default function ProductForm({ initial, onSubmit, onCancel, isSubmitting 
             <button type="button" className={styles.emojiBtn} onClick={() => setEmojiPicker(!showEmojiPicker)}>
               {form.emoji}
             </button>
+
+
             <input className={styles.input} style={{ direction: 'ltr' }}
               type="text" placeholder="Barcode" value={form.barcode}
               onChange={e => set('barcode', e.target.value)} />
+
+
           </div>
           {showEmojiPicker && (
             <div className={styles.emojiPicker} style={{
@@ -106,24 +124,39 @@ export default function ProductForm({ initial, onSubmit, onCancel, isSubmitting 
       <div className={styles.section}>
         <span className={styles.sectionTitle}>💰 المالية والمخزون</span>
 
-        <div className={styles.field}>
-          <label className={styles.label}>سعر البيع</label>
-          <input className={`${styles.input} ${styles.priceInput}`} type="number" step="0.01"
-            value={form.price} required onChange={e => set('price', e.target.value)} />
-        </div>
+      <div className={styles.field}>
+        <label className={styles.label}>سعر البيع (ج.م)</label>
+        <input
+          ref={priceInputRef}
+          className={`${styles.input} ${styles.priceInput}`}
+          type="text"           // Changed to text to allow Arabic char input
+          inputMode="decimal"   // Shows numeric pad on mobile
+          placeholder="0.00"
+          value={form.price}
+          required
+          onChange={(e) => handleNumericInput('price', e.target.value)}
+        />
+      </div>
 
         <div className={styles.field}>
           <label className={styles.label}>الكمية</label>
-          <input className={styles.input} type="number"
-            value={form.stock} required onChange={e => set('stock', e.target.value)} />
+          <input className={styles.input} type="text"
+          inputMode="decimal"  placeholder="0.00"
+            value={form.stock} required onChange={e => handleNumericInput('stock', e.target.value)} />
         </div>
 
-        <div className={styles.field}>
-          <label className={styles.label}>التكلفة</label>
-          <input className={styles.input} type="number" step="0.01"
-            value={form.cost} onChange={e => set('cost', e.target.value)} />
-        </div>
-
+      {/* Cost Input - Allows Arabic numerals and casts them */}
+      <div className={styles.field}>
+        <label className={styles.label}>سعر التكلفة</label>
+        <input
+          className={styles.input}
+          type="text"
+          inputMode="decimal"
+          placeholder="0.00"
+          value={form.cost}
+          onChange={(e) => handleNumericInput('cost', e.target.value)}
+        />
+      </div>
         <div className={styles.field}>
           <label className={styles.label}>الوحدة</label>
           <select className={styles.select} value={form.unit} onChange={e => set('unit', e.target.value)}>
