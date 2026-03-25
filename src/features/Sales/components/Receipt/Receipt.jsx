@@ -31,10 +31,17 @@ const getItemName = (item, index) =>
   item.nameAr || item.productNameAr || item.productName || item.name || `صنف ${index + 1}`;
 
 const getItemQty = (item) => {
-  if (item.isLoose && item.unit) {
-    return `${Number(item.quantity || 0).toFixed(2)} ${item.unit}`;
-  }
-  return String(item.quantity ?? 1);
+  const qty = Number(item.quantity || 0);
+
+  // Use the unit from the item, or fallback to 'قطعة' (piece)
+  const unit = item.unit || (item.isLoose ? 'جرام' : 'قطعة');
+
+  // Format the number: No decimals for pieces, 2-3 decimals for weight
+  const formattedQty = item.isLoose || qty % 1 !== 0
+    ? qty.toFixed(2)
+    : qty.toString();
+
+  return `${formattedQty} ${unit}`;
 };
 
 const getItemSubtotal = (item) => {
@@ -319,16 +326,15 @@ const Receipt = ({ isOpen, orderData, onClose, settings = {} }) => {
 
               {/* ── Item Counts ── */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px', marginBottom: '4px' }}>
-                <div style={row()}>
-                  <span style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>
-                    <Package size={12} /> {linesCount} صنف
-                  </span>
-                  <span>عدد الأصناف</span>
-                </div>
-                <div style={row()}>
-                  <span>{Number(itemsCount).toFixed(itemsCount % 1 !== 0 ? 2 : 0)} قطعة / وحدة</span>
-                  <span>إجمالي القطع</span>
-                </div>
+             <div style={row()}>
+  <span>{linesCount} صنف</span>
+  <span>تنوع الأصناف</span>
+</div>
+<div style={row()}>
+  {/* Filter out loose items from the "Piece" count if you want to be precise */}
+  <span>{items.reduce((s, i) => s + (i.isLoose ? 0 : Number(i.quantity)), 0)} قطعة</span>
+  <span>إجمالي القطع</span>
+</div>
               </div>
 
               <div style={dashed} />

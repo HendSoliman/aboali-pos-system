@@ -1,4 +1,4 @@
-import React, { useState ,useRef } from 'react';
+import React, { useState ,useRef ,useEffect } from 'react';
 import styles from './ProductForm.module.css';
 
 // ─── Constants ──────────────────────────────────────────────────────────────
@@ -27,6 +27,19 @@ const toEnglishDigits = (str) => {
 };
 
 export default function ProductForm({ initial, onSubmit, onCancel, isSubmitting }) {
+
+
+    // 1. ESC Key Listener: Closes the popup
+  useEffect(() => {
+    const handleKeyDown = (e) => {
+      if (e.key === 'Escape') {
+        onCancel();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [onCancel]);
+
   // Now makeDefault is defined and can be called here
   const [form, setForm] = useState(() => makeDefault(initial));
   const [showEmojiPicker, setEmojiPicker] = useState(false);

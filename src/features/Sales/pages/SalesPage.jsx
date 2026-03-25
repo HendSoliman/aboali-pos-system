@@ -187,10 +187,11 @@ function LooseProductModal({ isOpen, product, onClose, onAddToCart, t }) {
     const arabicName = getDisplayName(product);
     onAddToCart({
       ...product,
-      id         : `${product.id}_${Date.now()}`,
+      id         : product.id, // Keep this as the original numeric ID
+      cartKey    : `${product.id}_${Date.now()}`,
       name       : arabicName,
       nameAr     : arabicName,
-      quantity   : weightInKg,
+      quantity   : weightInKg, // This is already (weight / 1000) for grams
       weightValue: parseFloat(weightValue),
       weightUnit,
       price      : product.price,
@@ -558,10 +559,17 @@ export default function SalesPage() {
     });
   }, []);
 
-  const handleLooseAdd  = useCallback((item) => {
-    setCart(prev => [...prev, item]);
-    setLooseProduct(null);
-  }, []);
+const handleLooseAdd = useCallback((item) => {
+  const quantityInGrams = item.weightUnit === 'جرام'
+    ? item.weightValue
+    : item.weightValue * 1000;
+
+  setCart(prev => [...prev, {
+    ...item,
+    quantity: Math.round(quantityInGrams) // Send 50 instead of 0.05
+  }]);
+  setLooseProduct(null);
+}, []);
 
   const removeFromCart  = useCallback((id) =>
     setCart(prev => prev.filter(i => i.id !== id)), []);
@@ -595,15 +603,21 @@ export default function SalesPage() {
       paymentMethod,
       notes        : '',
       items: cart.map(item => {
-        const itemSubtotal = item.isLoose
-          ? (item.totalPrice ?? item.price * item.quantity)
-          : item.price * item.quantity;
+        const finalQuantity = item.isLoose
+            ? Math.round(item.quantity * 1000)
+            : item.quantity;
+
+          const finalPrice = item.isLoose
+            ? (item.price / 1000) // Price per gram
+            : item.price;
+
         return {
           productId : Number(item.id),
           name      : getDisplayName(item),
-          price     : parseFloat(item.price),
+          price     : parseFloat(finalPrice.toFixed(4)),
           quantity  : parseFloat(item.quantity),
-          subtotal  : parseFloat(itemSubtotal.toFixed(2)),
+          unit      : item.isLoose ? (item.weightUnit || 'جرام') : (item.unit || 'قطعة'),
+          subtotal  : parseFloat((item.totalPrice ?? item.price * item.quantity).toFixed(2)),
         };
       }),
       subtotal: parseFloat(cartSubtotal.toFixed(2)),
