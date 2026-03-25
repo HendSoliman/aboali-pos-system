@@ -32,17 +32,19 @@ const getItemName = (item, index) =>
 
 // Inside Receipt.jsx
 const getItemQty = (item) => {
-  const qty  = Number(item.quantity || 0);
-  const unit = item.unit || (item.isLoose ? 'كجم' : 'قطعة');
+  const qty = Number(item.quantity || 0);
 
   if (item.isLoose) {
-    if (qty < 1) {
-      // stored in kg, display as grams
-      return `${(qty * 1000).toFixed(0)} جرام`;
+    // quantity is ALWAYS stored in grams
+    if (qty >= 1000) {
+      return `${(qty / 1000).toFixed(2)} كجم`;
     }
-    return `${qty.toFixed(2)} كجم`;
+    return `${Math.round(qty)} جرام`;
   }
-  return `${qty} ${unit}`;
+
+  // Packed item
+  const unit = item.unit || 'قطعة';
+  return `${Number.isInteger(qty) ? qty : qty.toFixed(2)} ${unit}`;
 };
 
 const getItemSubtotal = (item) => {

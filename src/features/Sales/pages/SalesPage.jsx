@@ -626,7 +626,7 @@ const updateQty = useCallback((cartKey, qty) =>
           name      : getDisplayName(item),
           price     : parseFloat(item.isLoose ? item.price : item.price),
           quantity  : item.isLoose ? parseFloat(item.quantity.toFixed(3)) : item.quantity,
-          unit      : item.isLoose ? (item.weightUnit || 'جرام') : (item.unit || 'قطعة'),
+          unit: item.isLoose ? 'جرام' : (item.unit || 'قطعة'),
           subtotal  : parseFloat((item.totalPrice ?? item.price * item.quantity).toFixed(2)),
         };
       }),
@@ -679,7 +679,7 @@ const receipt = {
       ? (item.totalPrice ?? item.price * item.quantity)
       : item.price * item.quantity,
     weightLabel: item.isLoose ? formatWeight(item) : null,
-    unit: item.isLoose ? (item.weightUnit || 'جرام') : (item.unit || 'قطعة'),
+    unit: item.isLoose ? 'جرام' : (item.unit || 'قطعة'),
   })),
   subtotal     : cartSubtotal,
   discount     : discountAmount,
