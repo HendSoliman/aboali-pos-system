@@ -17,7 +17,7 @@ const ProductTable = ({ products, onEdit, onDelete }) => (
         {products.map((p) => (
           <tr key={p.id} className={styles.tr}>
             <td className={styles.td}>
-              <span className="ml-2">{p.emoji}</span>{p.name}
+              <span className="ml-2">{p.emoji}</span>{p.nameAr}
             </td>
             <td className={styles.td}><span className="badge-blue">{p.category}</span></td>
             <td className={styles.td}>{formatCurrency(p.price)}</td>

@@ -348,7 +348,7 @@ function ProductCard({ product, onClick, t }) {
 
       <div style={{ fontSize: 34, marginTop: 4 }}>{product.emoji ?? '📦'}</div>
       <div style={{ fontFamily: 'Cairo', fontSize: 13, fontWeight: 700, color: t.text, lineHeight: 1.4 }}>
-        {product.name}
+        {product.nameAr}
       </div>
       <div style={{ fontFamily: 'Cairo', fontSize: 12, color: product.isLoose ? '#f59e0b' : '#10b981', fontWeight: 700 }}>
         {formatCurrency(product.price)}
