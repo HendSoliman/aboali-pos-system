@@ -130,7 +130,7 @@ export default function Receipt({ isOpen, onClose, orderData }) {
               <div className={styles.metaCol}>
                 <span style={{ fontSize: 11, color: '#9ca3af' }}>رقم الفاتورة</span>
                 <span style={{ fontSize: 13, color: '#f3f4f6', fontWeight: 700 }}>{invoiceNumber}</span>
-                <span style={{ fontSize: 11, color: '#9ca3af', marginTop: 6 }}>الكاشير</span>
+                <span style={{ fontSize: 11, color: '#9ca3af', marginTop: 6 }}>البائع</span>
                 <span style={{ fontSize: 12, color: '#d1d5db' }}>{cashierName}</span>
               </div>
               <div className={`${styles.metaCol} ${styles.metaColRight}`}>

@@ -1,19 +1,15 @@
+// src/components/Modal/Modal.jsx
 import React, { useEffect } from 'react';
 import { X } from 'lucide-react';
 import styles from './Modal.module.css';
 
-const Modal = ({ isOpen, onClose, children, size = 'md', title }) => {
+const Modal = ({ isOpen, onClose, title, children, size = 'md' }) => {
+  // Lock body scroll when open
   useEffect(() => {
-    const handleKey = (e) => { if (e.key === 'Escape') onClose(); };
-    if (isOpen) {
-      document.addEventListener('keydown', handleKey);
-      document.body.style.overflow = 'hidden';
-    }
-    return () => {
-      document.removeEventListener('keydown', handleKey);
-      document.body.style.overflow = '';
-    };
-  }, [isOpen, onClose]);
+    if (isOpen) document.body.style.overflow = 'hidden';
+    else        document.body.style.overflow = '';
+    return ()  => { document.body.style.overflow = ''; };
+  }, [isOpen]);
 
   if (!isOpen) return null;
 
@@ -23,15 +19,18 @@ const Modal = ({ isOpen, onClose, children, size = 'md', title }) => {
         className={`${styles.modal} ${styles[size]}`}
         onClick={(e) => e.stopPropagation()}
       >
-        {title && (
-          <div className={styles.header}>
-            <h2 className={styles.title}>{title}</h2>
-            <button className={styles.closeBtn} onClick={onClose}>
-              <X size={18} />
-            </button>
-          </div>
-        )}
-        <div className={styles.body}>{children}</div>
+        {/* Header */}
+        <div className={styles.header}>
+          <span className={styles.title}>{title}</span>
+          <button className={styles.closeBtn} onClick={onClose}>
+            <X size={18} />
+          </button>
+        </div>
+
+        {/* Body */}
+        <div className={styles.body}>
+          {children}
+        </div>
       </div>
     </div>
   );
