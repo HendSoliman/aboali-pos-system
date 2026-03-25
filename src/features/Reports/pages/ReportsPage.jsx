@@ -27,19 +27,26 @@ const transformOrderToReceipt = (order) => ({
   change        : 0,
   notes         : order.notes ?? '',
 
-  // Map API items → Receipt item shape
-  items: (order.items ?? []).map((item, idx) => ({
-    id         : item.productId ?? idx,
-    name       : item.name      ?? `صنف ${idx + 1}`,
-    emoji      : item.emoji     ?? '📦',
-    price      : parseFloat(item.price    ?? 0),
-    quantity   : parseFloat(item.quantity ?? 1),
-    isLoose    : false,           // stored orders are already resolved
-    weightValue: null,
-    weightUnit : null,
-    totalPrice : parseFloat(item.subtotal ?? item.price * item.quantity),
-    weightLabel: null,
-  })),
+  items: (order.items ?? []).map((item, idx) => {
+    // 1. Identify the unit (fallback to 'قطعة' for old records)
+    const unit = item.unit || 'قطعة';
+
+    // 2. Determine if it's loose based on common weight units
+    const isWeightUnit = ['جرام', 'كجم', 'كيلو', 'gm', 'kg'].includes(unit);
+
+    return {
+      id         : item.productId ?? idx,
+      name       : item.name      ?? `صنف ${idx + 1}`,
+      emoji      : item.emoji     ?? '📦',
+      price      : parseFloat(item.price    ?? 0),
+      quantity   : parseFloat(item.quantity ?? 1),
+      unit       : unit,             // Pass the real unit to the Receipt
+      isLoose    : isWeightUnit,     // This enables decimal logic in Receipt.jsx
+      totalPrice : parseFloat(item.subtotal ?? item.price * item.quantity),
+      weightValue: isWeightUnit ? item.quantity : null,
+      weightUnit : isWeightUnit ? unit : null,
+    };
+  }),
 
   subtotal: order.subtotal ?? order.total ?? 0,
   discount: order.discount ?? 0,

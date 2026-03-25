@@ -452,14 +452,14 @@ function CartItem({ item, onUpdate, onRemove, t }) {
         <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
           {!item.isLoose && (
             <>
-              <button onClick={() => onUpdate(item.id, item.quantity - 1)} style={btnStyle}>−</button>
+              <button onClick={() => onUpdate( item.quantity - 1)} style={btnStyle}>−</button>
               <span style={{ fontFamily: 'Cairo', color: t.text, fontSize: 14, minWidth: 20, textAlign: 'center' }}>
                 {item.quantity}
               </span>
-              <button onClick={() => onUpdate(item.id, item.quantity + 1)} style={btnStyle}>+</button>
+              <button onClick={() => onUpdate(item.quantity + 1)} style={btnStyle}>+</button>
             </>
           )}
-          <button onClick={() => onRemove(item.id)}
+          <button onClick={() => onRemove()}
             style={{ ...btnStyle, background: '#7f1d1d', color: '#ef4444' }}>✕</button>
         </div>
       </div>
@@ -547,37 +547,51 @@ export default function SalesPage() {
   }, [loadProducts]);
 
   // ── Cart helpers ──────────────────────────────────────────────────────────
-  const addToCart = useCallback((product) => {
-    if (product.isLoose) { setLooseProduct(product); return; }
-    const arabicName = getDisplayName(product);
-    setCart(prev => {
-      const ex = prev.find(i => i.id === product.id && !i.isLoose);
-      if (ex) return prev.map(i =>
-        i.id === product.id && !i.isLoose ? { ...i, quantity: i.quantity + 1 } : i
-      );
-      return [...prev, { ...product, name: arabicName, nameAr: arabicName, quantity: 1 }];
-    });
-  }, []);
+const addToCart = useCallback((product) => {
+  if (product.isLoose) { setLooseProduct(product); return; }
+  const arabicName = getDisplayName(product);
+  setCart(prev => {
+    const ex = prev.find(i => i.id === product.id && !i.isLoose);
+    if (ex) return prev.map(i =>
+      i.id === product.id && !i.isLoose
+        ? { ...i, quantity: i.quantity + 1 }
+        : i
+    );
+    return [...prev, {
+      ...product,
+      cartKey : `${product.id}_${Date.now()}`,   // ✅ unique key
+      name    : arabicName,
+      nameAr  : arabicName,
+      quantity: 1,
+    }];
+  });
+}, []);
 
 const handleLooseAdd = useCallback((item) => {
+  // Always store quantity as whole grams in the cart
   const quantityInGrams = item.weightUnit === 'جرام'
-    ? item.weightValue
-    : item.weightValue * 1000;
+    ? Math.round(item.weightValue)
+    : Math.round(item.weightValue * 1000); // kg → grams
 
   setCart(prev => [...prev, {
     ...item,
-    quantity: Math.round(quantityInGrams) // Send 50 instead of 0.05
+    cartKey    : `${item.id}_${Date.now()}`,   // unique key for duplicates
+    quantity   : quantityInGrams,              // ✅ always integer grams
+    weightValue: item.weightValue,             // keep original for display
+    weightUnit : item.weightUnit,              // keep original for display
+    unit       : 'جرام',                       // canonical unit in cart
+    totalPrice : item.totalPrice,              // already correct from modal
   }]);
   setLooseProduct(null);
 }, []);
 
-  const removeFromCart  = useCallback((id) =>
-    setCart(prev => prev.filter(i => i.id !== id)), []);
+const removeFromCart = useCallback((cartKey) =>
+  setCart(prev => prev.filter(i => i.cartKey !== cartKey)), []);
 
-  const updateQty       = useCallback((id, qty) =>
-    setCart(prev => prev.map(i =>
-      i.id === id ? { ...i, quantity: Math.max(1, qty) } : i
-    )), []);
+const updateQty = useCallback((cartKey, qty) =>
+  setCart(prev => prev.map(i =>
+    i.cartKey === cartKey ? { ...i, quantity: Math.max(1, qty) } : i
+  )), []);
 
   const clearCart       = useCallback(() => setCart([]), []);
 
@@ -603,19 +617,15 @@ const handleLooseAdd = useCallback((item) => {
       paymentMethod,
       notes        : '',
       items: cart.map(item => {
-        const finalQuantity = item.isLoose
-            ? Math.round(item.quantity * 1000)
-            : item.quantity;
-
           const finalPrice = item.isLoose
             ? (item.price / 1000) // Price per gram
             : item.price;
 
-        return {
+         return {
           productId : Number(item.id),
           name      : getDisplayName(item),
-          price     : parseFloat(finalPrice.toFixed(4)),
-          quantity  : parseFloat(item.quantity),
+          price     : parseFloat(item.isLoose ? item.price : item.price),
+          quantity  : item.isLoose ? parseFloat(item.quantity.toFixed(3)) : item.quantity,
           unit      : item.isLoose ? (item.weightUnit || 'جرام') : (item.unit || 'قطعة'),
           subtotal  : parseFloat((item.totalPrice ?? item.price * item.quantity).toFixed(2)),
         };
@@ -630,15 +640,15 @@ const handleLooseAdd = useCallback((item) => {
     setIsSubmitting(true);
     setCheckoutError(null);
 // ── In handleCheckout, fix the date field ─────────────────────────────────
-const formatReceiptDate = (iso) => {
-  try {
-    const d = iso ? new Date(iso) : new Date();
-    return d.toLocaleString('ar-EG', {
-      year: 'numeric', month: 'long', day: 'numeric',
-      hour: '2-digit', minute: '2-digit',
-    });
-  } catch { return String(iso ?? ''); }
-};
+// const formatReceiptDate = (iso) => {
+//   try {
+//     const d = iso ? new Date(iso) : new Date();
+//     return d.toLocaleString('ar-EG', {
+//       year: 'numeric', month: 'long', day: 'numeric',
+//       hour: '2-digit', minute: '2-digit',
+//     });
+//   } catch { return String(iso ?? ''); }
+// };
 
     try {
       const res        = await ordersApi.create(orderPayload);
@@ -648,7 +658,9 @@ const formatReceiptDate = (iso) => {
 
 const receipt = {
   invoiceNumber : savedOrder.orderNumber ?? orderPayload.orderNumber,
-  date          : formatReceiptDate(savedOrder.createdAt),  // ✅ string, never Date object
+//   date          : formatReceiptDate(savedOrder.createdAt),  // ✅ string, never Date object
+  date: savedOrder.createdAt ?? new Date().toISOString(),  // raw ISO string
+
   cashierName   : cashierName,
   storeName     : storeName,
   paymentMethod : paymentMethod,
@@ -667,17 +679,19 @@ const receipt = {
       ? (item.totalPrice ?? item.price * item.quantity)
       : item.price * item.quantity,
     weightLabel: item.isLoose ? formatWeight(item) : null,
+    unit: item.isLoose ? (item.weightUnit || 'جرام') : (item.unit || 'قطعة'),
   })),
   subtotal     : cartSubtotal,
   discount     : discountAmount,
-  tax          : taxAmount,       // ✅ was missing!
+  tax          : taxAmount,
   total        : cartTotal,
+
   receiptNumber: savedOrder?.orderNumber
     ?? (savedOrder?.id
       ? `INV-${String(savedOrder.id).padStart(4, '0')}`
       : orderPayload.orderNumber),
-  itemsCount   : cart.reduce((sum, i) => sum + i.quantity, 0),
-  linesCount   : cart.length,
+  itemsCount: cart.reduce((sum, i) => sum + (i.isLoose ? 0 : i.quantity), 0),
+  linesCount: cart.length,
 };
 
 
@@ -747,10 +761,13 @@ const receipt = {
             </div>
           ) : (
             cart.map(item => (
-              <CartItem
-                key={item.id} item={item}
-                onUpdate={updateQty} onRemove={removeFromCart} t={t}
-              />
+             <CartItem
+  key={item.cartKey}           // ✅ was item.id
+  item={item}
+  onUpdate={(qty) => updateQty(item.cartKey, qty)}   // ✅
+  onRemove={() => removeFromCart(item.cartKey)}        // ✅
+  t={t}
+/>
             ))
           )}
         </div>
@@ -997,6 +1014,7 @@ const receipt = {
   <Receipt
     isOpen={showReceipt}
     orderData={receiptData}
+    settings={settings}
     onClose={() => {
       setShowReceipt(false);
       setReceiptData(null);

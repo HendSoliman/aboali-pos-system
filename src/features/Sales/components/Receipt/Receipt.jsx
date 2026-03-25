@@ -1,6 +1,6 @@
 // src/features/Sales/components/Receipt.jsx
 import React, { useRef } from 'react';
-import { X, Printer, MapPin, Phone, CheckCircle, Package } from 'lucide-react';
+import { X, Printer, MapPin, Phone, CheckCircle } from 'lucide-react';
 
 /* ─────────────────────────────────────────────
    Helpers
@@ -30,18 +30,19 @@ const getPaymentLabel = (method) => {
 const getItemName = (item, index) =>
   item.nameAr || item.productNameAr || item.productName || item.name || `صنف ${index + 1}`;
 
+// Inside Receipt.jsx
 const getItemQty = (item) => {
-  const qty = Number(item.quantity || 0);
+  const qty  = Number(item.quantity || 0);
+  const unit = item.unit || (item.isLoose ? 'كجم' : 'قطعة');
 
-  // Use the unit from the item, or fallback to 'قطعة' (piece)
-  const unit = item.unit || (item.isLoose ? 'جرام' : 'قطعة');
-
-  // Format the number: No decimals for pieces, 2-3 decimals for weight
-  const formattedQty = item.isLoose || qty % 1 !== 0
-    ? qty.toFixed(2)
-    : qty.toString();
-
-  return `${formattedQty} ${unit}`;
+  if (item.isLoose) {
+    if (qty < 1) {
+      // stored in kg, display as grams
+      return `${(qty * 1000).toFixed(0)} جرام`;
+    }
+    return `${qty.toFixed(2)} كجم`;
+  }
+  return `${qty} ${unit}`;
 };
 
 const getItemSubtotal = (item) => {
@@ -330,9 +331,11 @@ const Receipt = ({ isOpen, orderData, onClose, settings = {} }) => {
   <span>{linesCount} صنف</span>
   <span>تنوع الأصناف</span>
 </div>
+
 <div style={row()}>
-  {/* Filter out loose items from the "Piece" count if you want to be precise */}
-  <span>{items.reduce((s, i) => s + (i.isLoose ? 0 : Number(i.quantity)), 0)} قطعة</span>
+  <span>
+    {items.reduce((s, i) => s + (i.isLoose ? 0 : Number(i.quantity || 0)), 0)} قطعة
+  </span>
   <span>إجمالي القطع</span>
 </div>
               </div>
