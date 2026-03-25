@@ -1,17 +1,26 @@
-import { useState } from 'react';
-import { PRODUCTS } from '../../../data/products';
+// src/features/Reports/hooks/useReports.js
+import { useState, useEffect } from 'react';
+import { reportsApi } from '../../../services/api';
 
-const useReports = () => {
-  const [period, setPeriod] = useState('daily');
+export default function useReports() {
+  const [stats, setStats]   = useState({
+    totalSales: 0, totalOrders: 0,
+    avgOrderValue: 0, topProduct: '—', dailySales: []
+  });
+  const [loading, setLoading] = useState(false);
 
-  const stats = {
-    totalSales:    12540,
-    totalOrders:   87,
-    avgOrderValue: 144.13,
-    topProduct:    PRODUCTS[0].name,
-  };
+  useEffect(() => {
+    const fetch = async () => {
+      try {
+        setLoading(true);
+        const res = await reportsApi.getStats();
+        setStats(res.data);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetch();
+  }, []);
 
-  return { stats, period, setPeriod };
-};
-
-export default useReports;
+  return { stats, loading };
+}

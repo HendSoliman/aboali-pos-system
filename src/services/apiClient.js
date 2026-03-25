@@ -1,32 +1,19 @@
+
+// src/services/apiClient.js
 import axios from 'axios';
-import env from '../config/environment';
 
 const apiClient = axios.create({
-  baseURL: env.API_BASE_URL,
-  timeout: env.API_TIMEOUT,
-  headers: {
-    'Content-Type': 'application/json',
-    'Accept':       'application/json',
-  },
+  baseURL: import.meta.env.VITE_API_BASE_URL || 'http://localhost:8080/api/v1',
+  timeout: 10000,
+  headers: { 'Content-Type': 'application/json' },
 });
 
-/* ── Request Interceptor ────────────────────────── */
-apiClient.interceptors.request.use(
-  (config) => {
-    const token = localStorage.getItem('auth_token');
-    if (token) config.headers.Authorization = `Bearer ${token}`;
-    return config;
-  },
-  (error) => Promise.reject(error)
-);
-
-/* ── Response Interceptor ───────────────────────── */
+// ── Response interceptor: unwrap data / handle errors ──────────
 apiClient.interceptors.response.use(
-  (response) => response.data,
-  (error) => {
-    const message =
-      error.response?.data?.message || error.message || 'حدث خطأ غير متوقع';
-    return Promise.reject(new Error(message));
+  (res) => res.data,          // returns { success, message, data }
+  (err) => {
+    const msg = err.response?.data?.message || 'حدث خطأ في الاتصال بالخادم';
+    return Promise.reject(new Error(msg));
   }
 );
 
